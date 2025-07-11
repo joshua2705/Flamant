@@ -104,4 +104,4 @@ types/              # TypeScript type definitions
 
 ## License
 
-This project is licensed under the MIT License.
+Copyright held be the team given access to the repo
