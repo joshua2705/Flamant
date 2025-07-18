@@ -1,58 +1,41 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
-export default function LoginScreen() {
-  const router = useRouter();
-  const { signIn } = useAuth();
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const { signIn } = useAuth();
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-    
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const loginTranslateY = React.useRef(new Animated.Value(100)).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      Animated.timing(loginTranslateY, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
-    
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(email, password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please try again.';
-      
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      }
-      
-      Alert.alert('Login Error', errorMessage);
+      Alert.alert('Login Failed', error.message);
     } finally {
       setLoading(false);
     }
@@ -63,80 +46,87 @@ export default function LoginScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#111827" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue to FlamingoFood</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Handle bar */}
+        <View style={styles.handleBar} />
 
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
-            <Mail size={20} color="#9CA3AF" strokeWidth={2} />
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../assets/images/flamant-logo.png')}
+            style={styles.logo}
+            contentFit="contain"
+          />
+        </View>
+
+        {/* Header */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to continue</Text>
+        </View>
+
+        {/* Form */}
+        <Animated.View style={[styles.formContainer, { transform: [{ translateY: loginTranslateY }] }]}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors({ ...errors, email: undefined });
-              }}
+              onChangeText={setEmail}
+              placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
-            <Lock size={20} color="#9CA3AF" strokeWidth={2} />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#9CA3AF"
               value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (errors.password) setErrors({ ...errors, password: undefined });
-              }}
-              secureTextEntry={!showPassword}
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+              secureTextEntry
               autoCapitalize="none"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              {showPassword ? (
-                <EyeOff size={20} color="#9CA3AF" strokeWidth={2} />
-              ) : (
-                <Eye size={20} color="#9CA3AF" strokeWidth={2} />
-              )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.loginButtonText}>
+              {loading ? 'Signing In...' : 'Sign In'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Bottom section */}
+        <View style={styles.bottomContainer}>
+          <View style={styles.signupContainer}>
+            <Text style={styles.signupText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+              <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-        </View>
 
-        <TouchableOpacity 
-          style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <Text style={styles.loginButtonText}>
-            {loading ? 'Signing In...' : 'Sign In'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.signupPrompt}>
-          <Text style={styles.signupText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-            <Text style={styles.signupLink}>Sign Up</Text>
-          </TouchableOpacity>
+          {/* Social login */}
+          <View style={styles.socialContainer}>
+            <TouchableOpacity style={styles.socialButton}>
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton}>
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -146,106 +136,128 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
+  handleBar: {
+    width: 48,
+    height: 4,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  logoContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  logo: {
+    width: 128,
+    height: 128,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'Inter-Bold',
-    color: '#111827',
+    fontFamily: 'WorkSans-Bold',
+    fontSize: 24,
+    color: '#ff6f91',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 14,
+    color: '#6b7280',
   },
-  form: {
-    flex: 1,
-    paddingHorizontal: 20,
+  formContainer: {
+    marginBottom: 32,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
     color: '#374151',
     marginBottom: 8,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+  input: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 12,
-  },
-  inputError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#FEF2F2',
-  },
-  input: {
-    flex: 1,
+    fontFamily: 'WorkSans-Regular',
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
     color: '#111827',
   },
-  errorText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#ef4444',
-    marginTop: 4,
-  },
   loginButton: {
-    backgroundColor: '#ee5899',
-    borderRadius: 12,
-    paddingVertical: 18,
+    backgroundColor: '#ff6f91',
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#ee5899',
+    shadowColor: '#ff6f91',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   loginButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-    shadowOpacity: 0,
+    opacity: 0.6,
   },
   loginButtonText: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'WorkSans-Bold',
+    fontSize: 16,
     color: '#ffffff',
   },
-  signupPrompt: {
+  forgotPassword: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  forgotPasswordText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 14,
+    color: '#ff6f91',
+  },
+  bottomContainer: {
+    marginTop: 'auto',
+    paddingBottom: 32,
+  },
+  signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
+    marginBottom: 24,
   },
   signupText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 14,
+    color: '#6b7280',
   },
   signupLink: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#ee5899',
+    fontFamily: 'WorkSans-Bold',
+    fontSize: 14,
+    color: '#ff6f91',
+  },
+  socialContainer: {
+    gap: 12,
+  },
+  socialButton: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  socialButtonText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
+    color: '#374151',
   },
 });
