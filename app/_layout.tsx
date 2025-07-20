@@ -1,10 +1,10 @@
 import { Stack } from 'expo-router';
-import { AuthProvider } from '../contexts/AuthContext';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react'
+import { useEffect } from 'react';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
