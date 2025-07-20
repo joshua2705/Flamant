@@ -4,6 +4,31 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react'
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+function RootNavigator() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return null; // Or a loading screen
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {!user ? (
+        <Stack.Screen name="auth" />
+      ) : (
+        <>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="product" />
+        </>
+      )}
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,13 +52,11 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="product" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RootNavigator />
+        <StatusBar style="auto" />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
