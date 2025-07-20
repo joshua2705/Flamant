@@ -1,27 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Animated, Easing } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  Easing,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function Login() {
+const { height } = Dimensions.get('window');
+
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
 
-  const loginTranslateY = React.useRef(new Animated.Value(100)).current;
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current; // start slightly below
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.timing(loginTranslateY, {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
         toValue: 0,
         duration: 600,
         easing: Easing.out(Easing.exp),
         useNativeDriver: true,
-      }).start();
-    }, 5000);
-    return () => clearTimeout(timeout);
+      }),
+    ]).start();
   }, []);
 
   const handleLogin = async () => {
@@ -30,234 +48,181 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
     try {
       await signIn(email, password);
-      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ScrollView
+      contentContainerStyle={styles.formScroll}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* Handle bar */}
-        <View style={styles.handleBar} />
+      {/* Logo */}
+      <View style={[styles.logoSection]}>
+        <Image
+          source={require('../../assets/images/flamant-logo.png')}
+          style={styles.logo}
+          contentFit="contain"
+        />
+      </View>
 
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/images/flamant-logo.png')}
-            style={styles.logo}
-            contentFit="contain"
+      {/* Animated Login Form */}
+      <Animated.View
+        style={[
+          styles.loginContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.loginTitle}>Welcome Back</Text>
+        <Text style={styles.loginSubtitle}>Sign in to continue</Text>
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[styles.input]}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email"
+            placeholderTextColor="#6b7280"
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
         </View>
 
-        {/* Header */}
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
-        </View>
-
-        {/* Form */}
-        <Animated.View style={[styles.formContainer, { transform: [{ translateY: loginTranslateY }] }]}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.loginButtonText}>
-              {loading ? 'Signing In...' : 'Sign In'}
-            </Text>
-          </TouchableOpacity>
-
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#6b7280"
+            secureTextEntry
+          />
           <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
           </TouchableOpacity>
-        </Animated.View>
-
-        {/* Bottom section */}
-        <View style={styles.bottomContainer}>
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-              <Text style={styles.signupLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Social login */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Sign In</Text>
+        </TouchableOpacity>
+
+        <View style={styles.signupContainer}>
+          <Text style={styles.signupText}>New member? </Text>
+          <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+            <Text style={styles.signupLink}>Register now</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.ssoButton}>
+          <Text style={styles.ssoButtonText}>Continue with Google</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  formScroll: {
+    flexGrow: 1,
+    backgroundColor: '#fff',
+  },
+  logoSection: {
+    marginTop: 102,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
     backgroundColor: '#ffffff',
   },
-  scrollContainer: {
-    flexGrow: 1,
+  logo: { width: 150, height: 150, marginBottom: 8 },
+  loginContainer: {
     paddingHorizontal: 24,
+    paddingTop: 1,
   },
-  handleBar: {
-    width: 48,
-    height: 4,
-    backgroundColor: '#d1d5db',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  logo: {
-    width: 128,
-    height: 128,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
+  loginTitle: {
     fontFamily: 'WorkSans-Bold',
-    fontSize: 24,
-    color: '#ff6f91',
+    fontSize: 28,
+    color: '#111827',
     marginBottom: 8,
+    textAlign: 'center',
   },
-  subtitle: {
+  loginSubtitle: {
     fontFamily: 'WorkSans-Regular',
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
-  },
-  formContainer: {
-    marginBottom: 32,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: 20,
   },
-  label: {
-    fontFamily: 'WorkSans-Medium',
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 8,
-  },
   input: {
     backgroundColor: '#f9fafb',
-    borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 16,
+    borderWidth: 1,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    fontSize: 16,
     fontFamily: 'WorkSans-Regular',
-    fontSize: 16,
     color: '#111827',
-  },
-  loginButton: {
-    backgroundColor: '#ff6f91',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#ff6f91',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    fontFamily: 'WorkSans-Bold',
-    fontSize: 16,
-    color: '#ffffff',
   },
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
+    alignSelf: 'flex-end',
   },
   forgotPasswordText: {
-    fontFamily: 'WorkSans-Regular',
+    fontFamily: 'WorkSans-Medium',
     fontSize: 14,
     color: '#ff6f91',
   },
-  bottomContainer: {
-    marginTop: 'auto',
-    paddingBottom: 32,
+  button: {
+    backgroundColor: '#ff6f91',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontFamily: 'WorkSans-Bold',
+    fontSize: 16,
+  },
+  ssoButton: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: '#fafafa',
+  },
+  ssoButtonText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 16,
+    color: '#374151',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginTop: 20,
   },
   signupText: {
     fontFamily: 'WorkSans-Regular',
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
   },
   signupLink: {
-    fontFamily: 'WorkSans-Bold',
-    fontSize: 14,
-    color: '#ff6f91',
-  },
-  socialContainer: {
-    gap: 12,
-  },
-  socialButton: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  socialButtonText: {
     fontFamily: 'WorkSans-Medium',
-    fontSize: 14,
-    color: '#374151',
+    fontSize: 16,
+    color: '#ff6f91',
   },
 });
