@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { router, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { authService } from '@/services/authService'; // at the top
 
 const { height } = Dimensions.get('window');
 
@@ -79,6 +80,17 @@ export default function AuthIndex() {
       setLoading(false);
     }
   };
+  const handleGoogleLogin = async () => {
+  console.log('🟠 Google login button pressed');
+  try {
+    await authService.signInWithGoogle(); // use your existing logic
+    console.log('🟢 Google login successful');
+    router.replace('/(tabs)');
+  } catch (error) {
+    console.error('🔴 Google login error:', error);
+    Alert.alert('Google Sign-In failed. Please try again.');
+  }
+};
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -244,7 +256,7 @@ export default function AuthIndex() {
               <Text style={styles.signupLink}>Register now</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.ssoButton}>
+          <TouchableOpacity style={styles.ssoButton} onPress={handleGoogleLogin}>
             <Text style={styles.ssoButtonText}>Continue with Google</Text>
           </TouchableOpacity>
         </ScrollView>
