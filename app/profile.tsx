@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut, userProfile } = useAuth();
+  
 
   const menuItems = [
     { icon: ShoppingBag, title: 'My Listings', count: '3' },
