@@ -1,4 +1,4 @@
-// app/(tabs)/chat.tsx - FIXED VERSION
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { MessageCircle, User, Search } from 'lucide-react-native';

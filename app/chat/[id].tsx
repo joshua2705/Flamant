@@ -1,4 +1,4 @@
-// app/chat/[id].tsx - NEW FILE
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
