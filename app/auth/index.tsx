@@ -17,7 +17,7 @@ import { Image } from 'expo-image';
 import { router, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
-import { authService } from '@/services/authService'; // at the top
+import { useGoogleSignIn } from '@/services/authService'; // at the top
 
 const { height } = Dimensions.get('window');
 
@@ -37,6 +37,7 @@ export default function AuthIndex() {
   const titleOpacity = useRef(new Animated.Value(1)).current;
   const dotsOpacity = useRef(new Animated.Value(1)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
+
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
 
@@ -80,17 +81,31 @@ export default function AuthIndex() {
       setLoading(false);
     }
   };
+
+  // --- MODIFIED: Pass the onSignInSuccess callback to useGoogleSignIn ---
+  const { request, promptAsync } = useGoogleSignIn(() => {
+    router.replace('/(tabs)'); // Navigate to the tabs page on successful Google sign-in
+  });
+  // --- END MODIFIED ---
+
   const handleGoogleLogin = async () => {
-  console.log('🟠 Google login button pressed');
-  try {
-    await authService.signInWithGoogle(); // use your existing logic
-    console.log('🟢 Google login successful');
-    router.replace('/(tabs)');
-  } catch (error) {
-    console.error('🔴 Google login error:', error);
-    Alert.alert('Google Sign-In failed. Please try again.');
-  }
-};
+    console.log('🟠 Google login button pressed');
+    if (!request) {
+      Alert.alert('Google Sign-In not ready yet.');
+      return;
+    }
+    try {
+      setLoading(true); // Set loading state for Google sign-in
+      await promptAsync(); // This opens the browser and handles sign-in
+      // Firebase sign-in happens in the useEffect inside the hook
+      // The navigation will now be handled by the callback passed to useGoogleSignIn
+    } catch (error) {
+      console.error('🔴 Google login error:', error);
+      Alert.alert('Google Sign-In failed. Please try again.');
+    } finally {
+      setLoading(false); // Reset loading state after promptAsync completes or errors
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -256,8 +271,14 @@ export default function AuthIndex() {
               <Text style={styles.signupLink}>Register now</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.ssoButton} onPress={handleGoogleLogin}>
-            <Text style={styles.ssoButtonText}>Continue with Google</Text>
+          <TouchableOpacity 
+            style={[styles.ssoButton, loading && styles.loginButtonDisabled]} // Apply loading style
+            onPress={handleGoogleLogin}
+            disabled={loading} // Disable button when loading
+          >
+            <Text style={styles.ssoButtonText}>
+              {loading ? 'Signing In with Google...' : 'Continue with Google'}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </Animated.View>

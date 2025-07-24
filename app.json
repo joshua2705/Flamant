@@ -2,10 +2,11 @@
   "expo": {
     "name": "Flamant Food App",
     "slug": "flamant-food-app",
+    "owner": "joshua2705",
+    "scheme": "flamant",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
@@ -37,7 +38,6 @@
       "eas": {
         "projectId": "bf9f2775-1ffb-4829-a813-ccb38faa4641"
       }
-    },
-    "owner": "joshua2705"
+    }
   }
 }
