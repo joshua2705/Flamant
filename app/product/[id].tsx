@@ -5,11 +5,15 @@ import { ArrowLeft, Star, MapPin, User, MessageCircle } from 'lucide-react-nativ
 import ImageGallery from '@/components/ImageGallery';
 import { Product } from '@/types';
 import { mockProducts } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { chatService } from '@/services/chatService';
+import { chatUserService } from '@/services/chatUserService';
 // import { productService } from '@/services/productService';
 
 export default function ProductDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user, userProfile } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +43,71 @@ export default function ProductDetailScreen() {
       console.error('Error loading product:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to contact the seller');
+      return;
+    }
+    
+    if (!product) {
+      Alert.alert('Error', 'Product information not available');
+      return;
+    }
+    
+    // Check if user is trying to contact themselves (for real users vs mock sellers)
+    // Since sellers are mock data, we'll allow all interactions for now
+    
+    try {
+      console.log('Starting chat with seller:', product.seller);
+      
+      // First, ensure current user is synced to chat Firebase
+      const effectiveUserProfile = userProfile || {
+        id: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'User',
+        email: user.email || '',
+      };
+      
+      await chatUserService.syncUserToChatFirebase(user, effectiveUserProfile);
+      
+      // Create chat between buyer (current user) and seller (product owner)
+      const chatId = await chatService.createChatRoomWithProduct(
+        user.uid,           // buyerId (real Firebase user)
+        product.sellerId,   // sellerId (mock user ID like "user1")
+        product.id,         // productId
+        {
+          title: product.title,
+          price: product.price,
+          image: product.images[0],
+        }
+      );
+      
+      // Navigate to chat
+      router.push({
+        pathname: '/chat/[id]',
+        params: {
+          id: chatId,
+          otherUserId: product.sellerId,
+          otherUserName: product.seller.name,
+          productTitle: product.title,
+        }
+      });
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      Alert.alert('Error', 'Failed to start chat with seller');
+    }
+  };
+
+  const handleContactSeller = async () => {
+    await handlePlaceOrder();
+  };
+
+  const adjustQuantity = (change: number) => {
+    const newQuantity = quantity + change;
+    if (newQuantity >= 1) {
+      setQuantity(newQuantity);
     }
   };
 
@@ -78,26 +147,6 @@ export default function ProductDetailScreen() {
       </View>
     );
   }
-
-  const handlePlaceOrder = () => {
-    Alert.alert(
-      'Order Placed!',
-      `Your order for ${quantity}x ${product.title} has been placed. Total: €${(product.price * quantity).toFixed(2)}`,
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleContactSeller = () => {
-    // TODO: Navigate to chat with seller
-    Alert.alert('Contact Seller', 'Opening chat with seller...');
-  };
-
-  const adjustQuantity = (change: number) => {
-    const newQuantity = quantity + change;
-    if (newQuantity >= 1) {
-      setQuantity(newQuantity);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -188,7 +237,7 @@ export default function ProductDetailScreen() {
           <Text style={styles.totalPrice}>€{(product.price * quantity).toFixed(2)}</Text>
         </View>
         <TouchableOpacity style={styles.orderButton} onPress={handlePlaceOrder}>
-          <Text style={styles.orderButtonText}>Place Order</Text>
+          <Text style={styles.orderButtonText}>Contact Seller</Text>
         </TouchableOpacity>
       </View>
     </View>

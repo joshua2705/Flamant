@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { MessageCircle, User, Search } from 'lucide-react-native';
+import { MessageCircle, User, Search, ShoppingBag, DollarSign } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +13,15 @@ interface ChatWithUser {
   lastMessage: string | null;
   lastMessageTime: Date | null;
   productId?: string;
+  productInfo?: {
+    title: string;
+    price: number;
+    image?: string;
+  };
+  buyerId?: string;
+  sellerId?: string;
+  userRole: 'buyer' | 'seller';
+  isProductChat: boolean;
   otherUser: {
     id: string;
     name: string;
@@ -22,19 +30,23 @@ interface ChatWithUser {
   unread: boolean;
 }
 
+type TabType = 'purchases' | 'sales';
+
 export default function ChatScreen() {
   const { user, userProfile } = useAuth();
-  const [chats, setChats] = useState<ChatWithUser[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('purchases');
+  const [purchaseChats, setPurchaseChats] = useState<ChatWithUser[]>([]);
+  const [salesChats, setSalesChats] = useState<ChatWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [userSynced, setUserSynced] = useState(false);
 
   useEffect(() => {
-    console.log('🔍 =================');
-    console.log('🔍 Debug: user =', user);
-    console.log('🔍 Debug: userProfile =', userProfile);
+    console.log('=================');
+    console.log('Debug: user =', user);
+    console.log('Debug: userProfile =', userProfile);
     
     if (!user) {
-      console.log('❌ Missing user - not logged in');
+      console.log('Missing user - not logged in');
       setLoading(false);
       return;
     }
@@ -46,14 +58,14 @@ export default function ChatScreen() {
       email: user.email || '',
     };
 
-    console.log('✅ Using effectiveUserProfile:', effectiveUserProfile);
+    console.log('Using effectiveUserProfile:', effectiveUserProfile);
 
     // Sync user from main Firebase to chat Firebase
     const syncUser = async () => {
       try {
-        console.log('🔄 Starting sync to chat Firebase...');
+        console.log('Starting sync to chat Firebase...');
         await chatUserService.syncUserToChatFirebase(user, effectiveUserProfile);
-        console.log('✅ User synced successfully!');
+        console.log('User synced successfully!');
         setUserSynced(true);
       } catch (error: any) {
         console.error('❌ Error syncing user:', error);
@@ -67,19 +79,21 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!user || !userSynced) return;
 
-    console.log('Setting up chat subscription for user:', user.uid);
+    console.log('🔍 Setting up chat subscriptions for user:', user.uid);
     
-    const unsubscribe = chatService.subscribeToUserChats(user.uid, async (userChats) => {
-      console.log('Received chats update:', userChats);
+    // Subscribe to purchase chats (where user is buyer)
+    const unsubscribePurchases = chatService.subscribeToUserPurchases(user.uid, async (userPurchaseChats) => {
+      console.log('Received purchase chats:', userPurchaseChats.length);
       
       const chatsWithUserData = await Promise.all(
-        userChats.map(async (chat) => {
-          const otherUserId = chat.participants.find((id: string) => id !== user.uid);
+        userPurchaseChats.map(async (chat) => {
+          // For purchases, the other user is the seller
+          const otherUserId = chat.sellerId;
           const otherUser = await chatUserService.getUserById(otherUserId);
           
           return {
             ...chat,
-            otherUser: otherUser || { id: otherUserId, name: 'Unknown User' },
+            otherUser: otherUser || { id: otherUserId, name: 'Unknown Seller' },
             unread: false,
           };
         })
@@ -92,11 +106,43 @@ export default function ChatScreen() {
         return new Date(timeB).getTime() - new Date(timeA).getTime();
       });
       
-      setChats(chatsWithUserData);
-      setLoading(false);
+      setPurchaseChats(chatsWithUserData);
     });
 
-    return unsubscribe;
+    // Subscribe to sales chats (where user is seller)
+    const unsubscribeSales = chatService.subscribeToUserSales(user.uid, async (userSalesChats) => {
+      console.log('Received sales chats:', userSalesChats.length);
+      
+      const chatsWithUserData = await Promise.all(
+        userSalesChats.map(async (chat) => {
+          // For sales, the other user is the buyer
+          const otherUserId = chat.buyerId;
+          const otherUser = await chatUserService.getUserById(otherUserId);
+          
+          return {
+            ...chat,
+            otherUser: otherUser || { id: otherUserId, name: 'Unknown Buyer' },
+            unread: false,
+          };
+        })
+      );
+      
+      // Sort by last message time
+      chatsWithUserData.sort((a, b) => {
+        const timeA = a.lastMessageTime || a.createdAt;
+        const timeB = b.lastMessageTime || b.createdAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+      
+      setSalesChats(chatsWithUserData);
+    });
+
+    setLoading(false);
+
+    return () => {
+      unsubscribePurchases();
+      unsubscribeSales();
+    };
   }, [user, userSynced]);
 
   const handleChatPress = (chat: ChatWithUser) => {
@@ -146,6 +192,13 @@ export default function ChatScreen() {
           </Text>
         </View>
         
+        {/* Show product info if it's a product chat */}
+        {chat.isProductChat && chat.productInfo && (
+          <Text style={styles.productTitle} numberOfLines={1}>
+            {chat.productInfo.title} - €{chat.productInfo.price.toFixed(2)}
+          </Text>
+        )}
+        
         <Text 
           style={[
             styles.lastMessage,
@@ -161,16 +214,37 @@ export default function ChatScreen() {
     </TouchableOpacity>
   );
 
-  const EmptyState = () => (
+  const TabButton = ({ tab, title, icon }: { tab: TabType; title: string; icon: any }) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+      onPress={() => setActiveTab(tab)}
+    >
+      {icon}
+      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const EmptyState = ({ type }: { type: TabType }) => (
     <View style={styles.emptyState}>
-      <MessageCircle size={64} color="#D1D5DB" strokeWidth={1} />
-      <Text style={styles.emptyTitle}>No conversations yet</Text>
+      {type === 'purchases' ? (
+        <ShoppingBag size={64} color="#D1D5DB" strokeWidth={1} />
+      ) : (
+        <DollarSign size={64} color="#D1D5DB" strokeWidth={1} />
+      )}
+      <Text style={styles.emptyTitle}>
+        {type === 'purchases' ? 'No purchases yet' : 'No sales yet'}
+      </Text>
       <Text style={styles.emptySubtitle}>
-        Start chatting with other users about food items
+        {type === 'purchases' 
+          ? 'Start browsing products and contact sellers' 
+          : 'List your products to start receiving inquiries'
+        }
       </Text>
       <TouchableOpacity style={styles.searchButton} onPress={handleSearchPress}>
         <Search size={20} color="#fff" strokeWidth={2} />
-        <Text style={styles.searchButtonText}>Find Users</Text>
+        <Text style={styles.searchButtonText}>Find Users to Chat</Text>
       </TouchableOpacity>
     </View>
   );
@@ -203,6 +277,8 @@ export default function ChatScreen() {
     );
   }
 
+  const currentChats = activeTab === 'purchases' ? purchaseChats : salesChats;
+
   return (
     <View style={styles.container}>
       <Header title="Messages" showProfile />
@@ -215,20 +291,26 @@ export default function ChatScreen() {
         <Text style={styles.currentUserId}>Chat ID: {user?.uid}</Text>
       </View>
       
-      {/* Search Button */}
-      <View style={styles.searchContainer}>
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearchPress}>
-          <Search size={20} color="#fff" strokeWidth={2} />
-          <Text style={styles.searchButtonText}>Find Users to Chat</Text>
-        </TouchableOpacity>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TabButton 
+          tab="purchases" 
+          title={`My Purchases (${purchaseChats.length})`} 
+          icon={<ShoppingBag size={20} color={activeTab === 'purchases' ? '#fff' : '#6B7280'} strokeWidth={2} />}
+        />
+        <TabButton 
+          tab="sales" 
+          title={`My Sales (${salesChats.length})`} 
+          icon={<DollarSign size={20} color={activeTab === 'sales' ? '#fff' : '#6B7280'} strokeWidth={2} />}
+        />
       </View>
       
       {/* Chat List */}
-      {chats.length === 0 ? (
-        <EmptyState />
+      {currentChats.length === 0 ? (
+        <EmptyState type={activeTab} />
       ) : (
         <FlatList
-          data={chats}
+          data={currentChats}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatItem chat={item} />}
           style={styles.chatList}
@@ -272,25 +354,32 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Inter-Regular',
   },
-  searchContainer: {
-    padding: 16,
+  tabContainer: {
+    flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  searchButton: {
+  tabButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ee5899',
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     gap: 8,
+    backgroundColor: '#F9FAFB',
   },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  activeTab: {
+    backgroundColor: '#ee5899',
+  },
+  tabText: {
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#fff',
   },
   chatList: {
     flex: 1,
@@ -331,6 +420,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#9CA3AF',
   },
+  productTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#ee5899',
+    marginBottom: 2,
+  },
   lastMessage: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
@@ -367,5 +462,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ee5899',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
 });
