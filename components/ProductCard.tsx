@@ -18,23 +18,24 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <TouchableOpacity style={styles.container} onPress={handlePress}>
-      <ImageWithFallback 
+      <ImageWithFallback
         source={{ uri: product.images[0] }}
         style={styles.image}
         fallbackText="Food image unavailable"
       />
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>{product.title}</Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {product.title}
+        </Text>
         <Text style={styles.price}>€{product.price.toFixed(2)}</Text>
-        
+
         <View style={styles.sellerInfo}>
           <View style={styles.rating}>
             <Star size={14} color="#ffc847" fill="#ffc847" strokeWidth={0} />
-            <Text style={styles.ratingText}>{product.seller.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>{product.seller.rating}</Text>
           </View>
           <Text style={styles.sellerName}>{product.seller.name}</Text>
         </View>
-        
         <View style={styles.location}>
           <MapPin size={12} color="#9CA3AF" strokeWidth={2} />
           <Text style={styles.locationText}>{product.location}</Text>

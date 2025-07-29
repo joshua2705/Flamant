@@ -9,9 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useRouter } from 'expo-router';
@@ -163,91 +163,98 @@ export default function AuthIndex() {
           },
         ]}
       >
-        <ScrollView
-          contentContainerStyle={styles.formScroll}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Text style={styles.loginTitle}>Welcome Back</Text>
-          <Text style={styles.loginSubtitle}>Sign in to continue</Text>
+          <ScrollView
+            contentContainerStyle={styles.formScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.loginTitle}>Welcome Back</Text>
+            <Text style={styles.loginSubtitle}>Sign in to continue</Text>
 
-          <View
-            style={[styles.inputContainer, errors.email && styles.inputError]}
-          >
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors({ ...errors, email: undefined });
-              }}
-              placeholder="Email"
-              placeholderTextColor="#6b7280"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
-          </View>
-          <View
-            style={[
-              styles.inputContainer,
-              errors.password && styles.inputError,
-            ]}
-          >
-            <View style={styles.inputWithIcon}>
+            <View
+              style={[styles.inputContainer, errors.email && styles.inputError]}
+            >
               <TextInput
-                style={styles.inputFlex}
-                value={password}
-                placeholder="Password"
-                placeholderTextColor="#6b7280"
+                style={styles.input}
+                value={email}
                 onChangeText={(text) => {
-                  setPassword(text);
-                  if (errors.password)
-                    setErrors({ ...errors, password: undefined });
+                  setEmail(text);
+                  if (errors.email) setErrors({ ...errors, email: undefined });
                 }}
+                placeholder="Email"
+                placeholderTextColor="#6b7280"
+                keyboardType="email-address"
                 autoCapitalize="none"
-                secureTextEntry={!showPassword}
+                autoCorrect={false}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" strokeWidth={2} />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" strokeWidth={2} />
-                )}
+              {errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+            </View>
+            <View
+              style={[
+                styles.inputContainer,
+                errors.password && styles.inputError,
+              ]}
+            >
+              <View style={styles.inputWithIcon}>
+                <TextInput
+                  style={styles.inputFlex}
+                  value={password}
+                  placeholder="Password"
+                  placeholderTextColor="#6b7280"
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password)
+                      setErrors({ ...errors, password: undefined });
+                  }}
+                  autoCapitalize="none"
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color="#9CA3AF" strokeWidth={2} />
+                  ) : (
+                    <Eye size={20} color="#9CA3AF" strokeWidth={2} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <TouchableOpacity style={styles.forgotPassword}>
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
-          </View>
 
-          <View style={styles.inputContainer}>
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            <TouchableOpacity
+              style={[styles.button, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Text>
             </TouchableOpacity>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Signing In...' : 'Sign In'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>New member? </Text>
-            <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-              <Text style={styles.signupLink}>Register now</Text>
+            <View style={styles.signupContainer}>
+              <Text style={styles.signupText}>New member? </Text>
+              <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+                <Text style={styles.signupLink}>Register now</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.ssoButton}>
+              <Text style={styles.ssoButtonText}>Continue with Google</Text>
             </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.ssoButton}>
-            <Text style={styles.ssoButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Animated.View>
     </ScrollView>
   );

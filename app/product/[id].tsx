@@ -5,7 +5,7 @@ import { ArrowLeft, Star, MapPin, User, MessageCircle } from 'lucide-react-nativ
 import ImageGallery from '@/components/ImageGallery';
 import { Product } from '@/types';
 import { mockProducts } from '@/data/mockData';
-// import { productService } from '@/services/productService';
+import { productService } from '@/services/productService';
 
 export default function ProductDetailScreen() {
   const router = useRouter();
@@ -27,12 +27,9 @@ export default function ProductDetailScreen() {
     try {
       setLoading(true);
       setError(null);
-      // const fetchedProduct = await productService.getProductById(id);
-      // setProduct(fetchedProduct);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const foundProduct = mockProducts.find(p => p.id === id);
+      console.log("Fetching product details for id:",id);
+      const foundProduct = await productService.getProductById(id);
       setProduct(foundProduct || null);
     } catch (err) {
       setError('Failed to load product details');

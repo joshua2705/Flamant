@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Text, Dimensions } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Text,
+  Dimensions,
+} from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import SearchBar from '@/components/SearchBar';
 import ProductCard from '@/components/ProductCard';
 import { Product } from '@/types';
-import { mockProducts } from '@/data/mockData';
-// import { productService } from '@/services/productService';
+import { productService } from '@/services/productService';
 
 // Get screen dimensions for responsive layout
 const { width: screenWidth } = Dimensions.get('window');
@@ -14,7 +20,7 @@ const { width: screenWidth } = Dimensions.get('window');
 // Calculate number of columns based on screen width
 const getColumns = () => {
   if (screenWidth >= 1200) return 4; // Desktop monitors
-  if (screenWidth >= 768) return 3;  // Tablets
+  if (screenWidth >= 768) return 3; // Tablets
   return 2; // Mobile phones
 };
 
@@ -50,26 +56,20 @@ export default function HomeScreen() {
     //   setLoading(false);
     // });
     // return unsubscribe;
-    // Simulate loading dummy data
-    setTimeout(() => {
-      setProducts(mockProducts);
-      setFilteredProducts(mockProducts);
-      setLoading(false);
-    }, 1000);
+    setProducts(products);
+    setFilteredProducts(products);
   }, []);
 
   const loadProducts = async () => {
+    if (!user) return;
     try {
       setError(null);
       setLoading(true);
-      // const fetchedProducts = await productService.getAllProducts();
-      // setProducts(fetchedProducts);
-      // setFilteredProducts(fetchedProducts);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setProducts(mockProducts);
-      setFilteredProducts(mockProducts);
+      console.log('Getting all products');
+      const productsList = await productService.getAllProducts();
+      console.log('Products obtained from db');
+      setProducts(productsList);
+      setFilteredProducts(productsList);
     } catch (err) {
       setError('Failed to load products. Please try again.');
       console.error('Error loading products:', err);
@@ -82,11 +82,14 @@ export default function HomeScreen() {
       setFilteredProducts(products);
     } else {
       // Local filtering for demo
-      const filtered = products.filter(product =>
-        product.title.toLowerCase().includes(query.toLowerCase()) ||
-        product.description.toLowerCase().includes(query.toLowerCase()) ||
-        product.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())) ||
-        product.category.toLowerCase().includes(query.toLowerCase())
+      const filtered = products.filter(
+        (product) =>
+          product.title.toLowerCase().includes(query.toLowerCase()) ||
+          product.description.toLowerCase().includes(query.toLowerCase()) ||
+          product.tags.some((tag) =>
+            tag.toLowerCase().includes(query.toLowerCase())
+          ) ||
+          product.category.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredProducts(filtered);
     }
@@ -118,14 +121,14 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Header title="FlamingoFood" showFavorites />
       <SearchBar onSearch={handleSearch} />
-      
+
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -134,17 +137,16 @@ export default function HomeScreen() {
         {filteredProducts.length === 0 && !loading ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No food items found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your search or check back later</Text>
+            <Text style={styles.emptySubtext}>
+              Try adjusting your search or check back later
+            </Text>
           </View>
         ) : (
           <View style={[styles.gridContainer, { paddingHorizontal: 20 }]}>
-            {filteredProducts.map(product => (
-              <View 
-                key={product.id} 
-                style={[
-                  styles.gridItem,
-                  { width: `${100 / columns}%` }
-                ]}
+            {filteredProducts.map((product) => (
+              <View
+                key={product.id}
+                style={[styles.gridItem, { width: `${100 / columns}%` }]}
               >
                 <ProductCard product={product} />
               </View>
