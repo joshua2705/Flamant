@@ -1,7 +1,23 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Star, ShoppingBag, MessageCircle, Settings, LogOut } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  User,
+  Star,
+  ShoppingBag,
+  MessageCircle,
+  Settings,
+  LogOut,
+} from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
@@ -16,35 +32,35 @@ export default function ProfileScreen() {
   ];
 
   const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+    if (Platform.OS === 'web') {
+      // Fallback for web
+      if (window.confirm('Are you sure you want to sign out?')) {
+        signOut();
+        router.push('/auth/login');
+      }
+    } else {
+      // Native Alert for iOS/Android
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
-              // Navigation will be handled automatically by the auth state change
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
           },
         },
-      ]
-    );
+      ]);
+    }
   };
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
@@ -59,18 +75,24 @@ export default function ProfileScreen() {
           <View style={styles.avatarContainer}>
             <User size={48} color="#ee5899" strokeWidth={2} />
           </View>
-          
+
           <Text style={styles.name}>{userProfile?.name || 'User'}</Text>
-          <Text style={styles.email}>{userProfile?.email || 'user@example.com'}</Text>
-          
+          <Text style={styles.email}>
+            {userProfile?.email || 'user@example.com'}
+          </Text>
+
           <View style={styles.statsContainer}>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{userProfile?.rating?.toFixed(1) || '0.0'}</Text>
+              <Text style={styles.statNumber}>
+                {userProfile?.rating?.toFixed(1) || '0.0'}
+              </Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{userProfile?.reviewCount || '0'}</Text>
+              <Text style={styles.statNumber}>
+                {userProfile?.reviewCount || '0'}
+              </Text>
               <Text style={styles.statLabel}>Reviews</Text>
             </View>
             <View style={styles.statDivider} />
