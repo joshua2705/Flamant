@@ -118,7 +118,7 @@ export default function SellFoodScreen() {
       Alert.alert('Error', 'Failed to post your food item. Please try again.');
     } finally {
       setLoading(false);
-      router.back();
+      router.push('/sell');
     }
   };
 

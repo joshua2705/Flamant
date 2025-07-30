@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 import { Product } from '@/types';
 import { mockProducts } from '@/data/mockData';
+import { productService } from '@/services/productService';
 
 // Get screen dimensions for responsive layout
 const { width: screenWidth } = Dimensions.get('window');
@@ -19,7 +20,7 @@ const getColumns = () => {
 };
 
 export default function SellScreen() {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const router = useRouter();
   const [userProducts, setUserProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,29 +39,16 @@ export default function SellScreen() {
 
   useEffect(() => {
     loadUserProducts();
-  }, [user]);
+  }, [userProfile]);
 
   const loadUserProducts = async () => {
-    if (!user) return;
+    if (!userProfile) return;
     
     try {
       setLoading(true);
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // For demo purposes, show some products as if they belong to the current user
-      // In a real app, this would filter by the actual user ID
-      const userOwnedProducts = mockProducts.slice(0, 8).map(product => ({
-        ...product,
-        sellerId: user.uid,
-        seller: {
-          ...product.seller,
-          id: user.uid,
-          name: user.displayName || 'You',
-          email: user.email || '',
-        }
-      }));
-      
+      console.log("Getting listings by user with id",userProfile.id);
+      const userOwnedProducts = await productService.getProductsBySeller(userProfile.id);
+      console.log("Listings obtained");
       const filteredProducts = userOwnedProducts;
       setUserProducts(filteredProducts);
     } catch (error) {
