@@ -17,12 +17,13 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 
 const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,6 +95,35 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const handleGoogleSSO = async () => {
+
+    setLoading(true);
+    try {
+      await signInGoogle();
+      router.replace('/(tabs)');
+    }
+    catch (error) {
+      let errorMessage = "Sign-in error during Google SSO";
+
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.IN_PROGRESS:
+            errorMessage = "Operation (eg. sign in) already in progress";
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            errorMessage = "Android only, play services not available or outdated";
+            break;
+        }
+      }
+
+      if(isErrorWithCode(error) && error.code != 'auth/argument-error')
+        Alert.alert('Login Error', errorMessage);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -201,9 +231,14 @@ export default function LoginScreen() {
               <Text style={styles.signupLink}>Register now</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.ssoButton}>
-            <Text style={styles.ssoButtonText}>Continue with Google</Text>
+          <TouchableOpacity 
+            style={[styles.ssoButton, loading && styles.loginButtonDisabled]} // Apply loading style
+            onPress={handleGoogleSSO}
+            disabled={loading} // Disable button when loading
+          >
+            <Text style={styles.ssoButtonText}>
+              {loading ? 'Signing In with Google...' : 'Continue with Google'}
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>

@@ -68,6 +68,7 @@ export default function AuthIndex() {
   };
 
   const handleGoogleSSO = async () => {
+    setLoading(true);
     try {
       await signInGoogle();
       router.replace('/(tabs)');
