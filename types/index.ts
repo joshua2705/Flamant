@@ -1,3 +1,10 @@
+export interface FormError {
+  email?: string;
+  password?:string;
+  name?:string;
+  confirmPassword?:string;
+}
+
 export interface User {
   id: string;
   email: string;

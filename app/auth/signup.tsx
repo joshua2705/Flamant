@@ -15,15 +15,17 @@ import {
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Image } from 'expo-image';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import { validateSignUpForm, handleAuthError, handleSsoError } from './lib/errorHandler'
+import { FormError } from '@/types';
 
 const { height } = Dimensions.get('window');
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { signUp, signInGoogle } = useAuth();
+  const { signUp, signInGoogle, signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -31,12 +33,7 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
+  const [errors, setErrors] = useState<FormError>({});
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -57,61 +54,21 @@ export default function SignUpScreen() {
     ]).start();
   }, []);
 
-  const validateForm = () => {
-    const newErrors: {
-      name?: string;
-      email?: string;
-      password?: string;
-      confirmPassword?: string;
-    } = {};
-
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
-    }
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleSignUp = async () => {
-    if (!validateForm()) return;
+    
+    setErrors(validateSignUpForm(name, email, password, confirmPassword)) 
+    if(!(Object.keys(errors).length === 0)) {
+      return
+    };
     setLoading(true);
+
     try {
       await signUp(email.trim(), password, name.trim());
+      await signIn(email, password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      let errorMessage = 'Sign up failed. Please try again.';
-
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'An account with this email already exists.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage =
-          'Password is too weak. Please choose a stronger password.';
-      }
-
-      Alert.alert('Sign Up Error', errorMessage);
+      let errorMessage = handleAuthError(error)
+      //Alert.alert('Sign Up Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -124,21 +81,9 @@ export default function SignUpScreen() {
       router.replace('/(tabs)');
     }
     catch (error) {
-      let errorMessage = "Sign-in error during Google SSO";
-
-      if (isErrorWithCode(error)) {
-        switch (error.code) {
-          case statusCodes.IN_PROGRESS:
-            errorMessage = "Operation (eg. sign in) already in progress";
-            break;
-          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            errorMessage = "Android only, play services not available or outdated";
-            break;
-        }
-      }
-
+      let errorMessage = handleSsoError(error);
       if(isErrorWithCode(error) && error.code != 'auth/argument-error')
-        Alert.alert('Login Error', errorMessage);
+        Alert.alert('SSO Error', errorMessage);
     }
     finally {
       setLoading(false);
@@ -181,7 +126,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               value={name}
-              placeholder="Full Name"
+              placeholder="Name"
               placeholderTextColor="#6b7280"
               onChangeText={(text) => {
                 setName(text);
@@ -259,6 +204,7 @@ export default function SignUpScreen() {
                 value={confirmPassword}
                 placeholder="Confirm Password"
                 placeholderTextColor="#6b7280"
+                autoCapitalize="none"
                 onChangeText={(text) => {
                   setConfirmPassword(text);
                   if (errors.confirmPassword)
@@ -323,7 +269,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   logoSection: {
-    marginTop: 102,
+    marginTop: 30,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -331,7 +277,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 150,
     height: 150,
-    marginBottom: 8,
   },
   loginContainer: {
     paddingHorizontal: 24,
@@ -373,7 +318,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 4,
   },
   inputFlex: {
     flex: 1,

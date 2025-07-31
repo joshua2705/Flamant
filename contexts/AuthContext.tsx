@@ -72,7 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-
   const signUp = async (email: string, password: string, name: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -84,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: firebaseUser.email!,
         name,
       });
+
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;

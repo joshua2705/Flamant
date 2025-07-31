@@ -5,7 +5,9 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { FormError } from '@/types';
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import { validateForm, handleAuthError, handleSsoError } from './lib/errorHandler'
 const { height } = Dimensions.get('window');
 
 export default function AuthIndex() {
@@ -15,9 +17,7 @@ export default function AuthIndex() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
+  const [errors, setErrors] = useState<FormError>({});
   
   const logoTranslateY = useRef(new Animated.Value(0)).current;
   const loginTranslateY = useRef(new Animated.Value(height)).current;
@@ -25,43 +25,19 @@ export default function AuthIndex() {
   const dotsOpacity = useRef(new Animated.Value(1)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
 
+    setErrors(validateForm(email, password))
+    if (!(Object.keys(errors).length === 0)){return};
     setLoading(true);
+
     try {
       await signIn(email.trim(), password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please try again.';
-
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/invalid-credential') {
-        errorMessage = 'Mismatch in credentials.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      }
-
-      Alert.alert('Login Error', errorMessage);
+      let errorMessage = handleAuthError(error)
+      //Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -74,19 +50,7 @@ export default function AuthIndex() {
       router.replace('/(tabs)');
     }
     catch (error) {
-      let errorMessage = "Sign-in error during Google SSO";
-
-      if (isErrorWithCode(error)) {
-        switch (error.code) {
-          case statusCodes.IN_PROGRESS:
-            errorMessage = "Operation (eg. sign in) already in progress";
-            break;
-          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            errorMessage = "Android only, play services not available or outdated";
-            break;
-        }
-      }
-
+      let errorMessage = handleSsoError(error);
       if(isErrorWithCode(error) && error.code != 'auth/argument-error')
         Alert.alert('Login Error', errorMessage);
     }

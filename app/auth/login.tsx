@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import { validateForm, handleAuthError, handleSsoError } from './lib/errorHandler'
 
 const { height } = Dimensions.get('window');
 
@@ -71,26 +72,15 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()){return};
 
     setLoading(true);
     try {
       await signIn(email.trim(), password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please try again.';
-
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      }
-
-      Alert.alert('Login Error', errorMessage);
+      let errorMessage = handleAuthError(error)
+      //Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -104,19 +94,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     }
     catch (error) {
-      let errorMessage = "Sign-in error during Google SSO";
-
-      if (isErrorWithCode(error)) {
-        switch (error.code) {
-          case statusCodes.IN_PROGRESS:
-            errorMessage = "Operation (eg. sign in) already in progress";
-            break;
-          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            errorMessage = "Android only, play services not available or outdated";
-            break;
-        }
-      }
-
+      let errorMessage = handleSsoError(error);
       if(isErrorWithCode(error) && error.code != 'auth/argument-error')
         Alert.alert('Login Error', errorMessage);
     }
@@ -296,8 +274,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   forgotPassword: {
-    alignItems: 'center',
-    marginTop: 20,
     alignSelf: 'flex-end',
   },
   forgotPasswordText: {
@@ -310,8 +286,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 12,
   },
+  
   buttonText: {
     color: '#fff',
     fontFamily: 'WorkSans-Bold',
@@ -365,7 +341,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 4,
   },
   inputFlex: {
     flex: 1,
