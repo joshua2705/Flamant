@@ -1,29 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  Dimensions,
-  Easing,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View,Text,StyleSheet,Animated,Dimensions,Easing,
+  TextInput,TouchableOpacity,Alert,ScrollView,} from 'react-native';
 import { Image } from 'expo-image';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
-import { useGoogleSignIn } from '@/services/authService'; // at the top
-
+import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 const { height } = Dimensions.get('window');
 
 export default function AuthIndex() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +18,7 @@ export default function AuthIndex() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {}
   );
-
+  
   const logoTranslateY = useRef(new Animated.Value(0)).current;
   const loginTranslateY = useRef(new Animated.Value(height)).current;
   const titleOpacity = useRef(new Animated.Value(1)).current;
@@ -68,10 +55,8 @@ export default function AuthIndex() {
 
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Mismatch in credentials.';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
       }
@@ -82,30 +67,33 @@ export default function AuthIndex() {
     }
   };
 
-  // --- MODIFIED: Pass the onSignInSuccess callback to useGoogleSignIn ---
-  const { request, promptAsync } = useGoogleSignIn(() => {
-    router.replace('/(tabs)'); // Navigate to the tabs page on successful Google sign-in
-  });
-  // --- END MODIFIED ---
-
-  const handleGoogleLogin = async () => {
-    console.log('🟠 Google login button pressed');
-    if (!request) {
-      Alert.alert('Google Sign-In not ready yet.');
-      return;
-    }
+  const handleGoogleSSO = async () => {
     try {
-      setLoading(true); // Set loading state for Google sign-in
-      await promptAsync(); // This opens the browser and handles sign-in
-      // Firebase sign-in happens in the useEffect inside the hook
-      // The navigation will now be handled by the callback passed to useGoogleSignIn
-    } catch (error) {
-      console.error('🔴 Google login error:', error);
-      Alert.alert('Google Sign-In failed. Please try again.');
-    } finally {
-      setLoading(false); // Reset loading state after promptAsync completes or errors
+      await signInGoogle();
+      router.replace('/(tabs)');
     }
-  };
+    catch (error) {
+      let errorMessage = "Sign-in error during Google SSO";
+
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.IN_PROGRESS:
+            errorMessage = "Operation (eg. sign in) already in progress";
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            errorMessage = "Android only, play services not available or outdated";
+            break;
+        }
+      }
+
+      if(isErrorWithCode(error) && error.code != 'auth/argument-error')
+        Alert.alert('Login Error', errorMessage);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -273,7 +261,7 @@ export default function AuthIndex() {
           </View>
           <TouchableOpacity 
             style={[styles.ssoButton, loading && styles.loginButtonDisabled]} // Apply loading style
-            onPress={handleGoogleLogin}
+            onPress={handleGoogleSSO}
             disabled={loading} // Disable button when loading
           >
             <Text style={styles.ssoButtonText}>
@@ -362,18 +350,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 12,
   },
   buttonText: {
     color: '#fff',
     fontFamily: 'WorkSans-Bold',
     fontSize: 16,
   },
+  
   forgotPassword: {
-    alignItems: 'center',
-    marginTop: 20,
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-end'
   },
+
   forgotPasswordText: {
     fontFamily: 'WorkSans-Medium',
     fontSize: 14,
@@ -427,7 +414,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 4,
   },
   inputFlex: {
     flex: 1,

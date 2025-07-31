@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
 

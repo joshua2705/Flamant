@@ -29,8 +29,8 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              router.replace('/auth');
               await signOut();
-              // Navigation will be handled automatically by the auth state change
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
