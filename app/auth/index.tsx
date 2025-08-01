@@ -14,67 +14,65 @@ import {
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
-
+import { FormError } from '@/types';
+import {
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import {
+  validateForm,
+  handleAuthError,
+  handleSsoError,
+} from './lib/errorHandler';
 const { height } = Dimensions.get('window');
 
 export default function AuthIndex() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
+  const [errors, setErrors] = useState<FormError>({});
 
   const logoTranslateY = useRef(new Animated.Value(0)).current;
   const loginTranslateY = useRef(new Animated.Value(height)).current;
   const titleOpacity = useRef(new Animated.Value(1)).current;
   const dotsOpacity = useRef(new Animated.Value(1)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
+    const { newErrors, isValid } = validateForm(email, password);
+    setErrors(newErrors);
+    if (!isValid) {
+      return;
+    }
 
     setLoading(true);
+
     try {
       await signIn(email.trim(), password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please try again.';
-
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      }
-
+      let errorMessage = handleAuthError(error);
       Alert.alert('Login Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSSO = async () => {
+    setLoading(true);
+    try {
+      await signInGoogle();
+      router.replace('/(tabs)');
+    } catch (error) {
+      let errorMessage = handleSsoError(error);
+      if (isErrorWithCode(error) && error.code != 'auth/argument-error')
+        Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -250,8 +248,14 @@ export default function AuthIndex() {
                 <Text style={styles.signupLink}>Register now</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.ssoButton}>
-              <Text style={styles.ssoButtonText}>Continue with Google</Text>
+            <TouchableOpacity
+              style={[styles.ssoButton, loading && styles.loginButtonDisabled]} // Apply loading style
+              onPress={handleGoogleSSO}
+              disabled={loading} // Disable button when loading
+            >
+              <Text style={styles.ssoButtonText}>
+                {loading ? 'Signing In with Google...' : 'Continue with Google'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -336,18 +340,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 12,
   },
   buttonText: {
     color: '#fff',
     fontFamily: 'WorkSans-Bold',
     fontSize: 16,
   },
+
   forgotPassword: {
-    alignItems: 'center',
-    marginTop: 20,
     alignSelf: 'flex-end',
   },
+
   forgotPasswordText: {
     fontFamily: 'WorkSans-Medium',
     fontSize: 14,
@@ -401,7 +404,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 4,
   },
   inputFlex: {
     flex: 1,

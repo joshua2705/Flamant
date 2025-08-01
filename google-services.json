@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "579362285246",
+    "project_id": "flamant-93928",
+    "storage_bucket": "flamant-93928.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579362285246:android:00b93c06a6dc27e063a0ef",
+        "android_client_info": {
+          "package_name": "com.bendingforks.flamant"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "579362285246-h8hrh7ttvgssgjp5rolmrg486ngajvtl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bendingforks.flamant",
+            "certificate_hash": "382fab11498fb265bd6e1039c3fac39596e12bd1"
+          }
+        },
+        {
+          "client_id": "579362285246-cepqbvdpp5pqvtm3aja5n6ofuh60p9je.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2PrANZMgIjzO0yeJxmADTPl7AWUv1xGk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "579362285246-cepqbvdpp5pqvtm3aja5n6ofuh60p9je.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
