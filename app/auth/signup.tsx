@@ -56,10 +56,9 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     
-    setErrors(validateSignUpForm(name, email, password, confirmPassword)) 
-    if(!(Object.keys(errors).length === 0)) {
-      return
-    };
+    const {newErrors, isValid} = validateSignUpForm(name, email, password, confirmPassword);
+    setErrors(newErrors);
+    if(!isValid){return};
     setLoading(true);
 
     try {
@@ -68,7 +67,7 @@ export default function SignUpScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       let errorMessage = handleAuthError(error)
-      //Alert.alert('Sign Up Error', errorMessage);
+      Alert.alert('Sign Up Error', errorMessage);
     } finally {
       setLoading(false);
     }

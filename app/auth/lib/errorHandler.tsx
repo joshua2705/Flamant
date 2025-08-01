@@ -15,7 +15,7 @@ export const validateForm = (email:string, password:string) => {
         } else if (password.length < 6) {
             newErrors.password = 'Password must be at least 6 characters';
         }
-        return newErrors;
+        return {newErrors, isValid: Object.keys(newErrors).length === 0};
     };
 
 export const validateSignUpForm = (name:string, email:string, password:string, confirmPassword:string) => {
@@ -45,7 +45,7 @@ export const validateSignUpForm = (name:string, email:string, password:string, c
           newErrors.confirmPassword = 'Passwords do not match';
         }
     
-        return newErrors;
+        return {newErrors, isValid: Object.keys(newErrors).length === 0};
       };
 
 export const handleAuthError = (error:any) => {

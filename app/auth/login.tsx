@@ -37,24 +37,6 @@ export default function LoginScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current; // start slightly below
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -72,7 +54,10 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!validateForm()){return};
+    
+    const {newErrors, isValid} = validateForm(email, password);
+    setErrors(newErrors);
+    if(!isValid){return};
 
     setLoading(true);
     try {
@@ -80,7 +65,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       let errorMessage = handleAuthError(error)
-      //Alert.alert('Login Error', errorMessage);
+      Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }

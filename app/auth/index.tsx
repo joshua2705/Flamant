@@ -28,8 +28,10 @@ export default function AuthIndex() {
 
   const handleLogin = async () => {
 
-    setErrors(validateForm(email, password))
-    if (!(Object.keys(errors).length === 0)){return};
+    const {newErrors, isValid} = validateForm(email, password);
+    setErrors(newErrors);
+    if(!isValid){return};
+
     setLoading(true);
 
     try {
@@ -37,7 +39,7 @@ export default function AuthIndex() {
       router.replace('/(tabs)');
     } catch (error: any) {
       let errorMessage = handleAuthError(error)
-      //Alert.alert('Login Error', errorMessage);
+      Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }
