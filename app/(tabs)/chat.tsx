@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { MessageCircle, User, Search, ShoppingBag, DollarSign } from 'lucide-react-native';
+import { MessageCircle, User, Search, ShoppingBag, DollarSign, Package } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -195,7 +195,7 @@ export default function ChatScreen() {
         {/* Show product info if it's a product chat */}
         {chat.isProductChat && chat.productInfo && (
           <Text style={styles.productTitle} numberOfLines={1}>
-            {chat.productInfo.title} - €{chat.productInfo.price.toFixed(2)}
+            {chat.productInfo.title}
           </Text>
         )}
         
@@ -279,30 +279,45 @@ export default function ChatScreen() {
 
   const currentChats = activeTab === 'purchases' ? purchaseChats : salesChats;
 
+  const getUnreadCount = (chats: ChatWithUser[]) => {
+    return chats.filter(chat => !chat.unread).length;
+  };
+
   return (
     <View style={styles.container}>
       <Header title="Messages" showProfile />
       
-      {/* User Info */}
-      <View style={styles.userInfo}>
-        <Text style={styles.currentUser}>
-          👋 Hi, {userProfile?.name || user?.displayName || user?.email?.split('@')[0] || 'User'}!
-        </Text>
-        <Text style={styles.currentUserId}>Chat ID: {user?.uid}</Text>
-      </View>
-      
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TabButton 
-          tab="purchases" 
-          title={`My Purchases (${purchaseChats.length})`} 
-          icon={<ShoppingBag size={20} color={activeTab === 'purchases' ? '#fff' : '#6B7280'} strokeWidth={2} />}
-        />
-        <TabButton 
-          tab="sales" 
-          title={`My Sales (${salesChats.length})`} 
-          icon={<DollarSign size={20} color={activeTab === 'sales' ? '#fff' : '#6B7280'} strokeWidth={2} />}
-        />
+      <TouchableOpacity
+          style={[styles.tab, activeTab === 'purchases' && styles.activeTab]}
+          onPress={() => setActiveTab('purchases')}
+        >
+          <ShoppingBag size={20} color={activeTab === 'purchases' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
+          <Text style={[styles.tabText, activeTab === 'purchases' && styles.activeTabText]}>
+            Buying
+          </Text>
+          {getUnreadCount(purchaseChats) > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{getUnreadCount(purchaseChats)}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'sales' && styles.activeTab]}
+          onPress={() => setActiveTab('sales')}
+        >
+          <Package size={20} color={activeTab === 'sales' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
+          <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>
+            Selling
+          </Text>
+          {getUnreadCount(salesChats) > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{getUnreadCount(salesChats)}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
       
       {/* Chat List */}
@@ -360,6 +375,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  tabBadge: {
+    backgroundColor: '#ee5899',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ffffff',
+  },
+  tab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      gap: 8,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
   tabButton: {
     flex: 1,
     flexDirection: 'row',
@@ -371,15 +410,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   activeTab: {
-    backgroundColor: '#ee5899',
+    borderBottomColor: '#ee5899',
   },
   tabText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#6B7280',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#9CA3AF',
   },
   activeTabText: {
-    color: '#fff',
+    color: '#ee5899',
   },
   chatList: {
     flex: 1,
@@ -423,7 +462,6 @@ const styles = StyleSheet.create({
   productTitle: {
     fontSize: 13,
     fontFamily: 'Inter-Medium',
-    color: '#ee5899',
     marginBottom: 2,
   },
   lastMessage: {
