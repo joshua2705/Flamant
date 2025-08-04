@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, X, ArrowLeft } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import { useAuth } from '@/contexts/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
+import { productService } from '@/services/productService';
 
 export default function SellFoodScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -21,9 +30,11 @@ export default function SellFoodScreen() {
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'We need camera roll permissions to add photos');
+      Alert.alert(
+        'Permission required',
+        'We need camera roll permissions to add photos'
+      );
       return;
     }
 
@@ -35,22 +46,24 @@ export default function SellFoodScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImages([...images, result.assets[0].uri]);
+      setImages((prev) => [...prev, result.assets[0].uri]);
     }
   };
 
   const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert('Authentication required', 'Please sign in to post food items');
+    if (!userProfile) {
+      Alert.alert(
+        'Authentication required',
+        'Please sign in to post food items'
+      );
       return;
     }
 
-    if (!title || !description || !price || images.length === 0) {
+    if (!title || !description || !price) {
       Alert.alert('Missing information', 'Please fill in all required fields');
       return;
     }
@@ -64,59 +77,76 @@ export default function SellFoodScreen() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const newProduct = {
+        title,
+        description,
+        price: priceNum,
+        images: [],
+        category,
+        sellerId: userProfile.id,
+        seller: {
+          id: userProfile.id,
+          name: userProfile.name,
+          email: userProfile.email,
+          avatar: userProfile.avatar || '',
+          rating: userProfile.rating || 0,
+          reviewCount: userProfile.reviewCount || 0,
+          isVerified: userProfile.isVerified || false,
+          location: userProfile.location || '',
+          createdAt: userProfile.createdAt || new Date(),
+        },
+        location,
+        isAvailable: true,
+        tags: [], // can populate later with AI keywords if needed
+        servings: servings ? parseInt(servings) : undefined,
+        notes: notes || '',
+      };
 
-      Alert.alert('Success', 'Your food listing has been posted!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setTitle('');
-            setDescription('');
-            setPrice('');
-            setCategory('');
-            setLocation('');
-            setServings('');
-            setNotes('');
-            setImages([]);
-            
-            // Navigate back to sell tab
-            router.back();
-          }
-        }
-      ]);
+      console.log('Uploading product...');
+      await productService.createProduct(newProduct, images);
+      console.log('Product uploaded');
+      setTitle('');
+      setDescription('');
+      setPrice('');
+      setCategory('');
+      setLocation('');
+      setServings('');
+      setNotes('');
+      setImages([]);
     } catch (error) {
       console.error('Error creating product:', error);
       Alert.alert('Error', 'Failed to post your food item. Please try again.');
     } finally {
       setLoading(false);
+      router.push('/sell');
     }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <ArrowLeft size={24} color="#111827" strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Sell Food</Text>
         <View style={styles.placeholder} />
       </View>
-      
+
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Photos</Text>
-          
           <ScrollView horizontal style={styles.imageContainer}>
             {images.map((uri, index) => (
               <View key={index} style={styles.imageWrapper}>
-                <ImageWithFallback 
-                  source={{ uri }} 
+                <ImageWithFallback
+                  source={{ uri }}
                   style={styles.image}
                   fallbackText="Preview unavailable"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removeImage(index)}
                 >
@@ -124,7 +154,6 @@ export default function SellFoodScreen() {
                 </TouchableOpacity>
               </View>
             ))}
-            
             <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
               <Camera size={32} color="#9CA3AF" strokeWidth={2} />
               <Text style={styles.addImageText}>Add Photo</Text>
@@ -190,13 +219,13 @@ export default function SellFoodScreen() {
           </View>
 
           <View style={[styles.section, { flex: 1, marginLeft: 16 }]}>
-          <Text style={styles.label}>Pickup Location</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Building A, Floor 2"
-            value={location}
-            onChangeText={setLocation}
-          />
+            <Text style={styles.label}>Pickup Location</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Building A, Floor 2"
+              value={location}
+              onChangeText={setLocation}
+            />
           </View>
         </View>
 
@@ -204,7 +233,7 @@ export default function SellFoodScreen() {
           <Text style={styles.label}>Notes</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Any additional information (dietary restrictions, ingredients, etc.)"
+            placeholder="Any additional info (dietary restrictions, ingredients, etc.)"
             value={notes}
             onChangeText={setNotes}
             multiline
@@ -212,8 +241,8 @@ export default function SellFoodScreen() {
           />
         </View>
 
-        <TouchableOpacity 
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
@@ -227,10 +256,7 @@ export default function SellFoodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -242,24 +268,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: '#111827' },
+  placeholder: { width: 40 },
+  content: { flex: 1, padding: 20 },
+  section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
@@ -282,25 +295,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  imageContainer: {
-    flexDirection: 'row',
-  },
-  imageWrapper: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-  },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  row: { flexDirection: 'row' },
+  imageContainer: { flexDirection: 'row' },
+  imageWrapper: { position: 'relative', marginRight: 12 },
+  image: { width: 100, height: 100, borderRadius: 12 },
   removeButton: {
     position: 'absolute',
     top: -8,
@@ -342,7 +341,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
   },
-  submitButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-  },
+  submitButtonDisabled: { backgroundColor: '#D1D5DB' },
 });

@@ -3,12 +3,16 @@ import { User as FirebaseUser, signInWithEmailAndPassword, createUserWithEmailAn
 import { auth } from '@/config/firebase';
 import { User } from '@/types';
 import { userService } from '@/services/userService';
+import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
 
 interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInGoogle: ()=> Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -19,6 +23,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    GoogleSignin.configure({
+      webClientId : "579362285246-cepqbvdpp5pqvtm3aja5n6ofuh60p9je.apps.googleusercontent.com",    
+    });
+  })
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -49,6 +59,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const credential = GoogleAuthProvider.credential(response.data?.idToken);
+      await signInWithCredential(auth, credential);
+      // Should I create user in userprofile separately??
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
+  }
+  
   const signUp = async (email: string, password: string, name: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -60,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: firebaseUser.email!,
         name,
       });
+
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;
@@ -69,6 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      GoogleSignin.revokeAccess();
+      GoogleSignin.signOut();
       // State will be updated automatically by onAuthStateChanged
     } catch (error) {
       console.error('Sign out error:', error);
@@ -82,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userProfile,
       loading,
       signIn,
+      signInGoogle,
       signUp,
       signOut
     }}>

@@ -1,146 +1,168 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { MessageCircle, User, ShoppingBag, Package } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { MessageCircle, User, Search, ShoppingBag, DollarSign, Package } from 'lucide-react-native';
+import { router } from 'expo-router';
 import Header from '@/components/Header';
-import { Chat, User as UserType } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { chatService } from '@/services/chatService';
+import { chatUserService } from '@/services/chatUserService';
 
-// Mock data for buying chats (user is the buyer)
-const mockBuyingChats: Chat[] = [
-  {
-    id: 'buy1',
-    participants: ['currentUser', 'user1'],
-    lastMessage: {
-      id: 'msg1',
-      chatId: 'buy1',
-      senderId: 'user1',
-      receiverId: 'currentUser',
-      message: 'The pasta is still available! When would you like to pick it up?',
-      timestamp: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
-      isRead: false,
-    },
-    updatedAt: new Date(Date.now() - 15 * 60 * 1000),
-    productId: '1',
-    productTitle: 'Homemade Pasta Bolognese',
-    sellerName: 'Marie Dubois',
-  },
-  {
-    id: 'buy2',
-    participants: ['currentUser', 'user3'],
-    lastMessage: {
-      id: 'msg2',
-      chatId: 'buy2',
-      senderId: 'currentUser',
-      receiverId: 'user3',
-      message: 'Perfect! I\'ll be there at 2 PM to pick up the curry.',
-      timestamp: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
-      isRead: true,
-    },
-    updatedAt: new Date(Date.now() - 45 * 60 * 1000),
-    productId: '3',
-    productTitle: 'Spicy Thai Green Curry',
-    sellerName: 'Sophie Chen',
-  },
-  {
-    id: 'buy3',
-    participants: ['currentUser', 'user5'],
-    lastMessage: {
-      id: 'msg3',
-      chatId: 'buy3',
-      senderId: 'user5',
-      receiverId: 'currentUser',
-      message: 'Hi! The butter chicken is ready. Building D, Floor 2, room 205.',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      isRead: true,
-    },
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    productId: '5',
-    productTitle: 'Indian Butter Chicken & Naan',
-    sellerName: 'Priya Patel',
-  },
-];
-
-// Mock data for selling chats (user is the seller)
-const mockSellingChats: Chat[] = [
-  {
-    id: 'sell1',
-    participants: ['currentUser', 'buyer1'],
-    lastMessage: {
-      id: 'msg4',
-      chatId: 'sell1',
-      senderId: 'buyer1',
-      receiverId: 'currentUser',
-      message: 'Is the apple pie still available? I\'d love to try it!',
-      timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      isRead: false,
-    },
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000),
-    productId: '8',
-    productTitle: 'Homemade Apple Pie',
-    buyerName: 'James Wilson',
-  },
-  {
-    id: 'sell2',
-    participants: ['currentUser', 'buyer2'],
-    lastMessage: {
-      id: 'msg5',
-      chatId: 'sell2',
-      senderId: 'currentUser',
-      receiverId: 'buyer2',
-      message: 'Great! The bento box will be ready by noon. I\'ll let you know when it\'s done.',
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-      isRead: true,
-    },
-    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    productId: '6',
-    productTitle: 'Japanese Bento Box',
-    buyerName: 'Emma Thompson',
-  },
-  {
-    id: 'sell3',
-    participants: ['currentUser', 'buyer3'],
-    lastMessage: {
-      id: 'msg6',
-      chatId: 'sell3',
-      senderId: 'buyer3',
-      receiverId: 'currentUser',
-      message: 'Thank you so much! The croissants were absolutely delicious 😊',
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-      isRead: true,
-    },
-    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    productId: '2',
-    productTitle: 'Fresh Croissants & Pain au Chocolat',
-    buyerName: 'Lucas Martin',
-  },
-  {
-    id: 'sell4',
-    participants: ['currentUser', 'buyer4'],
-    lastMessage: {
-      id: 'msg7',
-      chatId: 'sell4',
-      senderId: 'buyer4',
-      receiverId: 'currentUser',
-      message: 'Hi! I saw your mezze platter listing. Is it still available for tonight?',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      isRead: false,
-    },
-    updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    productId: '7',
-    productTitle: 'Mediterranean Mezze Platter',
-    buyerName: 'Anna Rodriguez',
-  },
-];
-
-type TabType = 'buying' | 'selling';
-
-interface ChatItemProps {
-  chat: Chat;
-  onPress: () => void;
-  type: TabType;
+interface ChatWithUser {
+  id: string;
+  participants: string[];
+  lastMessage: string | null;
+  lastMessageTime: Date | null;
+  productId?: string;
+  productInfo?: {
+    title: string;
+    price: number;
+    image?: string;
+  };
+  buyerId?: string;
+  sellerId?: string;
+  userRole: 'buyer' | 'seller';
+  isProductChat: boolean;
+  otherUser: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  unread: boolean;
 }
 
-function ChatItem({ chat, onPress, type }: ChatItemProps) {
-  const formatTime = (date: Date) => {
+type TabType = 'purchases' | 'sales';
+
+export default function ChatScreen() {
+  const { user, userProfile } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('purchases');
+  const [purchaseChats, setPurchaseChats] = useState<ChatWithUser[]>([]);
+  const [salesChats, setSalesChats] = useState<ChatWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userSynced, setUserSynced] = useState(false);
+
+  useEffect(() => {
+    console.log('=================');
+    console.log('Debug: user =', user);
+    console.log('Debug: userProfile =', userProfile);
+    
+    if (!user) {
+      console.log('Missing user - not logged in');
+      setLoading(false);
+      return;
+    }
+
+    // Create userProfile from auth user if it doesn't exist
+    const effectiveUserProfile = userProfile || {
+      id: user.uid,
+      name: user.displayName || user.email?.split('@')[0] || 'User',
+      email: user.email || '',
+    };
+
+    console.log('Using effectiveUserProfile:', effectiveUserProfile);
+
+    // Sync user from main Firebase to chat Firebase
+    const syncUser = async () => {
+      try {
+        console.log('Starting sync to chat Firebase...');
+        await chatUserService.syncUserToChatFirebase(user, effectiveUserProfile);
+        console.log('User synced successfully!');
+        setUserSynced(true);
+      } catch (error: any) {
+        console.error('❌ Error syncing user:', error);
+        setLoading(false);
+      }
+    };
+
+    syncUser();
+  }, [user, userProfile]);
+
+  useEffect(() => {
+    if (!user || !userSynced) return;
+
+    console.log('🔍 Setting up chat subscriptions for user:', user.uid);
+    
+    // Subscribe to purchase chats (where user is buyer)
+    const unsubscribePurchases = chatService.subscribeToUserPurchases(user.uid, async (userPurchaseChats) => {
+      console.log('Received purchase chats:', userPurchaseChats.length);
+      
+      const chatsWithUserData = await Promise.all(
+        userPurchaseChats.map(async (chat) => {
+          // For purchases, the other user is the seller
+          const otherUserId = chat.sellerId;
+          const otherUser = await chatUserService.getUserById(otherUserId);
+          
+          return {
+            ...chat,
+            otherUser: otherUser || { id: otherUserId, name: 'Unknown Seller' },
+            unread: false,
+          };
+        })
+      );
+      
+      // Sort by last message time
+      chatsWithUserData.sort((a, b) => {
+        const timeA = a.lastMessageTime || a.createdAt;
+        const timeB = b.lastMessageTime || b.createdAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+      
+      setPurchaseChats(chatsWithUserData);
+    });
+
+    // Subscribe to sales chats (where user is seller)
+    const unsubscribeSales = chatService.subscribeToUserSales(user.uid, async (userSalesChats) => {
+      console.log('Received sales chats:', userSalesChats.length);
+      
+      const chatsWithUserData = await Promise.all(
+        userSalesChats.map(async (chat) => {
+          // For sales, the other user is the buyer
+          const otherUserId = chat.buyerId;
+          const otherUser = await chatUserService.getUserById(otherUserId);
+          
+          return {
+            ...chat,
+            otherUser: otherUser || { id: otherUserId, name: 'Unknown Buyer' },
+            unread: false,
+          };
+        })
+      );
+      
+      // Sort by last message time
+      chatsWithUserData.sort((a, b) => {
+        const timeA = a.lastMessageTime || a.createdAt;
+        const timeB = b.lastMessageTime || b.createdAt;
+        return new Date(timeB).getTime() - new Date(timeA).getTime();
+      });
+      
+      setSalesChats(chatsWithUserData);
+    });
+
+    setLoading(false);
+
+    return () => {
+      unsubscribePurchases();
+      unsubscribeSales();
+    };
+  }, [user, userSynced]);
+
+  const handleChatPress = (chat: ChatWithUser) => {
+    router.push({
+      pathname: '/chat/[id]',
+      params: {
+        id: chat.id,
+        otherUserId: chat.otherUser.id,
+        otherUserName: chat.otherUser.name,
+      }
+    });
+  };
+
+  const handleSearchPress = () => {
+    router.push('/chat/search');
+  };
+
+  const formatTime = (date: Date | null) => {
+    if (!date) return '';
+    
     const now = new Date();
     const diffInMs = now.getTime() - date.getTime();
     const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
@@ -156,148 +178,156 @@ function ChatItem({ chat, onPress, type }: ChatItemProps) {
     }
   };
 
-  const getDisplayName = () => {
-    if (type === 'buying') {
-      return (chat as any).sellerName || 'Seller';
-    } else {
-      return (chat as any).buyerName || 'Buyer';
-    }
-  };
-
-  const getProductTitle = () => {
-    return (chat as any).productTitle || 'Food Item';
-  };
-
-  return (
-    <TouchableOpacity style={styles.chatItem} onPress={onPress}>
+  const ChatItem = ({ chat }: { chat: ChatWithUser }) => (
+    <TouchableOpacity style={styles.chatItem} onPress={() => handleChatPress(chat)}>
       <View style={styles.avatar}>
         <User size={24} color="#ee5899" strokeWidth={2} />
       </View>
       
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
-          <View style={styles.nameContainer}>
-            <Text style={styles.chatName}>{getDisplayName()}</Text>
-            <View style={[styles.typeBadge, type === 'buying' ? styles.buyingBadge : styles.sellingBadge]}>
-              {type === 'buying' ? (
-                <ShoppingBag size={12} color="#ffffff" strokeWidth={2} />
-              ) : (
-                <Package size={12} color="#ffffff" strokeWidth={2} />
-              )}
-              <Text style={styles.typeBadgeText}>{type === 'buying' ? 'Buying' : 'Selling'}</Text>
-            </View>
-          </View>
+          <Text style={styles.chatName}>{chat.otherUser.name}</Text>
           <Text style={styles.chatTime}>
-            {chat.lastMessage ? formatTime(chat.lastMessage.timestamp) : ''}
+            {formatTime(chat.lastMessageTime)}
           </Text>
         </View>
         
-        <Text style={styles.productTitle} numberOfLines={1}>
-          {getProductTitle()}
-        </Text>
+        {/* Show product info if it's a product chat */}
+        {chat.isProductChat && chat.productInfo && (
+          <Text style={styles.productTitle} numberOfLines={1}>
+            {chat.productInfo.title}
+          </Text>
+        )}
         
         <Text 
           style={[
             styles.lastMessage,
-            !chat.lastMessage?.isRead && styles.unreadMessage
+            chat.unread && styles.unreadMessage
           ]}
           numberOfLines={1}
         >
-          {chat.lastMessage?.message || 'No messages yet'}
+          {chat.lastMessage || 'No messages yet'}
         </Text>
       </View>
       
-      {!chat.lastMessage?.isRead && (
-        <View style={styles.unreadDot} />
-      )}
+      {chat.unread && <View style={styles.unreadDot} />}
     </TouchableOpacity>
   );
-}
 
-export default function ChatScreen() {
-  const [activeTab, setActiveTab] = useState<TabType>('buying');
-  const [buyingChats] = useState<Chat[]>(mockBuyingChats);
-  const [sellingChats] = useState<Chat[]>(mockSellingChats);
+  const TabButton = ({ tab, title, icon }: { tab: TabType; title: string; icon: any }) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+      onPress={() => setActiveTab(tab)}
+    >
+      {icon}
+      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
 
-  const handleChatPress = (chatId: string) => {
-    // TODO: Navigate to chat detail screen
-    console.log('Open chat:', chatId);
-  };
-
-  const getActiveChats = () => {
-    return activeTab === 'buying' ? buyingChats : sellingChats;
-  };
-
-  const getUnreadCount = (chats: Chat[]) => {
-    return chats.filter(chat => !chat.lastMessage?.isRead).length;
-  };
-
-  const EmptyState = () => (
+  const EmptyState = ({ type }: { type: TabType }) => (
     <View style={styles.emptyState}>
-      <MessageCircle size={64} color="#D1D5DB" strokeWidth={1} />
+      {type === 'purchases' ? (
+        <ShoppingBag size={64} color="#D1D5DB" strokeWidth={1} />
+      ) : (
+        <DollarSign size={64} color="#D1D5DB" strokeWidth={1} />
+      )}
       <Text style={styles.emptyTitle}>
-        {activeTab === 'buying' ? 'No buying conversations' : 'No selling conversations'}
+        {type === 'purchases' ? 'No purchases yet' : 'No sales yet'}
       </Text>
       <Text style={styles.emptySubtitle}>
-        {activeTab === 'buying' 
-          ? 'Start chatting with sellers about their food items'
-          : 'Your selling conversations will appear here when buyers contact you'
+        {type === 'purchases' 
+          ? 'Start browsing products and contact sellers' 
+          : 'List your products to start receiving inquiries'
         }
       </Text>
+      <TouchableOpacity style={styles.searchButton} onPress={handleSearchPress}>
+        <Search size={20} color="#fff" strokeWidth={2} />
+        <Text style={styles.searchButtonText}>Find Users to Chat</Text>
+      </TouchableOpacity>
     </View>
   );
+
+  // Show loading while syncing user or if not logged in
+  if (loading || !userSynced) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ee5899" />
+        <Text style={styles.loadingText}>
+          {!user ? 'Please log in to use chat' : 'Setting up chat...'}
+        </Text>
+      </View>
+    );
+  }
+
+  // Show login prompt if no user
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Header title="Messages" showProfile />
+        <View style={styles.emptyState}>
+          <MessageCircle size={64} color="#D1D5DB" strokeWidth={1} />
+          <Text style={styles.emptyTitle}>Login Required</Text>
+          <Text style={styles.emptySubtitle}>
+            Please log in to access chat features
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const currentChats = activeTab === 'purchases' ? purchaseChats : salesChats;
+
+  const getUnreadCount = (chats: ChatWithUser[]) => {
+    return chats.filter(chat => !chat.unread).length;
+  };
 
   return (
     <View style={styles.container}>
       <Header title="Messages" showProfile />
       
-      {/* Tab Navigation */}
+      {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'buying' && styles.activeTab]}
-          onPress={() => setActiveTab('buying')}
+      <TouchableOpacity
+          style={[styles.tab, activeTab === 'purchases' && styles.activeTab]}
+          onPress={() => setActiveTab('purchases')}
         >
-          <ShoppingBag size={20} color={activeTab === 'buying' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
-          <Text style={[styles.tabText, activeTab === 'buying' && styles.activeTabText]}>
+          <ShoppingBag size={20} color={activeTab === 'purchases' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
+          <Text style={[styles.tabText, activeTab === 'purchases' && styles.activeTabText]}>
             Buying
           </Text>
-          {getUnreadCount(buyingChats) > 0 && (
+          {getUnreadCount(purchaseChats) > 0 && (
             <View style={styles.tabBadge}>
-              <Text style={styles.tabBadgeText}>{getUnreadCount(buyingChats)}</Text>
+              <Text style={styles.tabBadgeText}>{getUnreadCount(purchaseChats)}</Text>
             </View>
           )}
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'selling' && styles.activeTab]}
-          onPress={() => setActiveTab('selling')}
+          style={[styles.tab, activeTab === 'sales' && styles.activeTab]}
+          onPress={() => setActiveTab('sales')}
         >
-          <Package size={20} color={activeTab === 'selling' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
-          <Text style={[styles.tabText, activeTab === 'selling' && styles.activeTabText]}>
+          <Package size={20} color={activeTab === 'sales' ? '#ee5899' : '#9CA3AF'} strokeWidth={2} />
+          <Text style={[styles.tabText, activeTab === 'sales' && styles.activeTabText]}>
             Selling
           </Text>
-          {getUnreadCount(sellingChats) > 0 && (
+          {getUnreadCount(salesChats) > 0 && (
             <View style={styles.tabBadge}>
-              <Text style={styles.tabBadgeText}>{getUnreadCount(sellingChats)}</Text>
+              <Text style={styles.tabBadgeText}>{getUnreadCount(salesChats)}</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
       
       {/* Chat List */}
-      {getActiveChats().length === 0 ? (
-        <EmptyState />
+      {currentChats.length === 0 ? (
+        <EmptyState type={activeTab} />
       ) : (
         <FlatList
-          data={getActiveChats()}
+          data={currentChats}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ChatItem
-              chat={item}
-              type={activeTab}
-              onPress={() => handleChatPress(item.id)}
-            />
-          )}
+          renderItem={({ item }) => <ChatItem chat={item} />}
           style={styles.chatList}
         />
       )}
@@ -310,33 +340,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+  },
+  userInfo: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  currentUser: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: 'Inter-SemiBold',
+  },
+  currentUserId: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Inter-Regular',
+  },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#ee5899',
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#9CA3AF',
-  },
-  activeTabText: {
-    color: '#ee5899',
   },
   tabBadge: {
     backgroundColor: '#ee5899',
@@ -350,6 +387,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#ffffff',
+  },
+  tab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      gap: 8,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+  },
+  activeTab: {
+    borderBottomColor: '#ee5899',
+  },
+  tabText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#9CA3AF',
+  },
+  activeTabText: {
+    color: '#ee5899',
   },
   chatList: {
     flex: 1,
@@ -377,38 +446,13 @@ const styles = StyleSheet.create({
   chatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  nameContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
+    marginBottom: 4,
   },
   chatName: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#111827',
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
-  },
-  buyingBadge: {
-    backgroundColor: '#4fcf88',
-  },
-  sellingBadge: {
-    backgroundColor: '#ff691f',
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Inter-SemiBold',
-    color: '#ffffff',
   },
   chatTime: {
     fontSize: 12,
@@ -418,7 +462,6 @@ const styles = StyleSheet.create({
   productTitle: {
     fontSize: 13,
     fontFamily: 'Inter-Medium',
-    color: '#6B7280',
     marginBottom: 2,
   },
   lastMessage: {
@@ -456,5 +499,20 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 24,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ee5899',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
 });

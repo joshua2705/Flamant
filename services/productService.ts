@@ -1,24 +1,28 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
   onSnapshot,
   serverTimestamp,
-  Timestamp 
+  Timestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
 import { Product, User } from '@/types';
 
 const PRODUCTS_COLLECTION = 'products';
-const USERS_COLLECTION = 'users';
 
 // Convert Firestore timestamp to Date
 const convertTimestamp = (timestamp: any): Date => {
@@ -72,7 +76,7 @@ export const productService = {
     try {
       const docRef = doc(db, PRODUCTS_COLLECTION, id);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return convertProductData(docSnap);
       }
@@ -111,13 +115,18 @@ export const productService = {
       );
       const querySnapshot = await getDocs(q);
       const allProducts = querySnapshot.docs.map(convertProductData);
-      
+
       // Client-side filtering
-      return allProducts.filter(product =>
-        product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase())
+      return allProducts.filter(
+        (product) =>
+          product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          product.tags.some((tag) =>
+            tag.toLowerCase().includes(searchTerm.toLowerCase())
+          ) ||
+          product.category.toLowerCase().includes(searchTerm.toLowerCase())
       );
     } catch (error) {
       console.error('Error searching products:', error);
@@ -140,7 +149,10 @@ export const productService = {
   },
 
   // Create new product
-  async createProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>, imageUris: string[]): Promise<string> {
+  async createProduct(
+    productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>,
+    imageUris: string[]
+  ): Promise<string> {
     try {
       // Upload images first
       const imageUrls: string[] = [];
@@ -213,12 +225,16 @@ export const productService = {
       orderBy('createdAt', 'desc')
     );
 
-    return onSnapshot(q, (querySnapshot) => {
-      const products = querySnapshot.docs.map(convertProductData);
-      callback(products);
-    }, (error) => {
-      console.error('Error in products subscription:', error);
-    });
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const products = querySnapshot.docs.map(convertProductData);
+        callback(products);
+      },
+      (error) => {
+        console.error('Error in products subscription:', error);
+      }
+    );
   },
 
   // Toggle product availability
