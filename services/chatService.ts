@@ -9,23 +9,22 @@ import {
   setDoc,
   getDoc,
   where,
-  getDocs
+  getDocs,
+  updateDoc
 } from 'firebase/firestore';
 
 import { chatDb } from '../config/chatFirebase';
+import { notificationService } from './notificationService';
+import { chatUserService } from './chatUserService';
 
 export const chatService = {
- 
-
   async createChatRoom(user1Id: string, user2Id: string, productId?: string) {
     try {
       console.log('Creating chat room between:', user1Id, user2Id);
       
-      // Create chat ID by sorting user IDs (ensures consistency)
       const chatId = [user1Id, user2Id].sort().join('_');
       const chatRef = doc(chatDb, 'chats', chatId);
       
-      // Check if chat already exists
       const chatDoc = await getDoc(chatRef);
       
       if (!chatDoc.exists()) {
@@ -48,7 +47,6 @@ export const chatService = {
     }
   },
 
-
   async createChatRoomWithProduct(
     buyerId: string, 
     sellerId: string, 
@@ -59,14 +57,12 @@ export const chatService = {
       image?: string;
     }
   ) {
-    try {//
+    try {
       console.log('🚀 Creating product chat between buyer:', buyerId, 'and seller:', sellerId);
       
-      // Create chat ID by sorting user IDs 
       const chatId = [buyerId, sellerId].sort().join('_');
       const chatRef = doc(chatDb, 'chats', chatId);
       
-      // Check if chat already exists
       const chatDoc = await getDoc(chatRef);
       
       const chatData = {
@@ -82,19 +78,18 @@ export const chatService = {
       };
       
       if (!chatDoc.exists()) {
-        console.log(' Creating new product chat with data:', chatData);
+        console.log('✨ Creating new product chat with data:', chatData);
         await setDoc(chatRef, chatData);
       } else {
-        console.log(' Product chat already exists, updating data');
-        // Update existing chat to ensure buyer/seller fields are set
+        console.log('📝 Product chat already exists, updating data');
         await setDoc(chatRef, chatData, { merge: true });
       }
       
-      // Send initial product message
+      // Send initial product message with notification
       const initialMessage = `Hi! I'm interested in your "${productInfo.title}" for €${productInfo.price.toFixed(2)}. Is it still available?`;
-      await this.sendMessage(chatId, buyerId, initialMessage);
+      await this.sendMessage(chatId, buyerId, initialMessage, 'product_inquiry', productId);
       
-      console.log('Product chat created successfully:', chatId);
+      console.log('✅ Product chat created successfully:', chatId);
       return chatId;
     } catch (error) {
       console.error('Error creating product chat room:', error);
@@ -102,20 +97,28 @@ export const chatService = {
     }
   },
 
-  async sendMessage(chatId: string, senderId: string, text: string) {
+  async sendMessage(
+    chatId: string, 
+    senderId: string, 
+    text: string, 
+    messageType: 'chat_message' | 'product_inquiry' = 'chat_message',
+    productId?: string
+  ) {
     try {
-      console.log('Sending message:', { chatId, senderId, text });
+      console.log('📤 Sending message:', { chatId, senderId, text });
       
       if (!text.trim()) {
         throw new Error('Message cannot be empty');
       }
 
+      // Add message to Firestore
       const messagesRef = collection(chatDb, 'chats', chatId, 'messages');
       await addDoc(messagesRef, {
         text: text.trim(),
         senderId,
         timestamp: serverTimestamp(),
-        read: false
+        read: false,
+        type: messageType
       });
 
       // Update chat with last message info
@@ -125,7 +128,36 @@ export const chatService = {
         lastMessageTime: serverTimestamp()
       }, { merge: true });
 
-      console.log('Message sent successfully');
+      // Get chat participants and sender info for notifications
+      const chatDoc = await getDoc(chatRef);
+      if (chatDoc.exists()) {
+        const chatData = chatDoc.data();
+        const participants = chatData.participants || [];
+        
+        // Find recipient (the other participant)
+        const recipientId = participants.find((id: string) => id !== senderId);
+        
+        if (recipientId) {
+          // Get sender info
+          const senderInfo = await chatUserService.getUserById(senderId);
+          const senderName = senderInfo?.name || 'Someone';
+          
+          // Queue notification for recipient
+          await notificationService.queueNotification(
+            recipientId,
+            senderId,
+            chatId,
+            text.trim(),
+            senderName,
+            messageType,
+            productId || chatData.productId
+          );
+          
+          console.log('🔔 Notification queued for recipient:', recipientId);
+        }
+      }
+
+      console.log('✅ Message sent successfully');
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
@@ -133,7 +165,7 @@ export const chatService = {
   },
 
   subscribeToMessages(chatId: string, callback: (messages: any[]) => void) {
-    console.log('Subscribing to messages for chat:', chatId);
+    console.log('👂 Subscribing to messages for chat:', chatId);
     
     const messagesRef = collection(chatDb, 'chats', chatId, 'messages');
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
@@ -145,16 +177,15 @@ export const chatService = {
         timestamp: doc.data().timestamp?.toDate()
       }));
       
-      console.log('Received messages update:', messages.length, 'messages');
+      console.log('📨 Received messages update:', messages.length, 'messages');
       callback(messages);
     }, (error) => {
       console.error('Error in messages subscription:', error);
     });
   },
 
-  // UPDATED FUNCTION - General chat subscription with buyer/seller info
   subscribeToUserChats(userId: string, callback: (chats: any[]) => void) {
-    console.log(' Subscribing to all chats for user:', userId);
+    console.log('💬 Subscribing to all chats for user:', userId);
     
     const chatsRef = collection(chatDb, 'chats');
     const q = query(chatsRef, where('participants', 'array-contains', userId));
@@ -167,40 +198,25 @@ export const chatService = {
           ...data,
           lastMessageTime: data.lastMessageTime?.toDate(),
           createdAt: data.createdAt?.toDate(),
-          // Add buyer/seller role for current user
           userRole: data.buyerId === userId ? 'buyer' : 'seller',
           isProductChat: !!data.productId,
         };
       });
       
-      console.log(' Received all chats update:', chats.length, 'chats');
+      console.log('📋 Received all chats update:', chats.length, 'chats');
       callback(chats);
     }, (error) => {
-      console.error(' Error in chats subscription:', error);
+      console.error('💥 Error in chats subscription:', error);
     });
   },
 
-  // Purchase chats (where user is buyer)
   subscribeToUserPurchases(userId: string, callback: (chats: any[]) => void) {
-    console.log('Subscribing to purchase chats for user:', userId);
-    console.log('Looking for chats where buyerId =', userId);
+    console.log('🛒 Subscribing to purchase chats for user:', userId);
     
     const chatsRef = collection(chatDb, 'chats');
     const q = query(chatsRef, where('buyerId', '==', userId));
     
     return onSnapshot(q, (snapshot) => {
-      console.log(' DEBUG: Purchase query found', snapshot.docs.length, 'chats');
-      
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        console.log('🔍 DEBUG: Purchase chat:', {
-          id: doc.id,
-          buyerId: data.buyerId,
-          sellerId: data.sellerId,
-          productTitle: data.productInfo?.title
-        });
-      });
-
       const chats = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -210,34 +226,20 @@ export const chatService = {
         isProductChat: !!doc.data().productId,
       }));
       
-      console.log('Received purchase chats:', chats.length);
+      console.log('🛍️ Received purchase chats:', chats.length);
       callback(chats);
     }, (error) => {
       console.error('Error in purchase chats subscription:', error);
     });
   },
 
-  // FIXED FUNCTION - Sales chats (where user is seller)
   subscribeToUserSales(userId: string, callback: (chats: any[]) => void) {
-    console.log('Subscribing to sales chats for user:', userId);
-    console.log('Looking for chats where sellerId =', userId);
+    console.log('💰 Subscribing to sales chats for user:', userId);
     
     const chatsRef = collection(chatDb, 'chats');
     const q = query(chatsRef, where('sellerId', '==', userId));
     
     return onSnapshot(q, (snapshot) => {
-      console.log(' DEBUG: Sales query found', snapshot.docs.length, 'chats');
-      
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        console.log('DEBUG: Sales chat:', {
-          id: doc.id,
-          buyerId: data.buyerId,
-          sellerId: data.sellerId,
-          productTitle: data.productInfo?.title
-        });
-      });
-
       const chats = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -247,10 +249,36 @@ export const chatService = {
         isProductChat: !!doc.data().productId,
       }));
       
-      console.log(' Received sales chats:', chats.length);
+      console.log('💸 Received sales chats:', chats.length);
       callback(chats);
     }, (error) => {
       console.error('Error in sales chats subscription:', error);
     });
+  },
+
+  // FIXED - Mark messages as read (removed batch operations)
+  async markMessagesAsRead(chatId: string, userId: string) {
+    try {
+      const messagesRef = collection(chatDb, 'chats', chatId, 'messages');
+      const q = query(
+        messagesRef, 
+        where('senderId', '!=', userId),
+        where('read', '==', false)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      // Update messages one by one (no batch)
+      for (const messageDoc of snapshot.docs) {
+        await updateDoc(messageDoc.ref, { read: true });
+      }
+      
+      // Clear notifications for this chat
+      await notificationService.clearChatNotifications(chatId);
+      
+      console.log('✅ Messages marked as read for chat:', chatId);
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
   }
 };

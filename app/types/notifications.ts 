@@ -1,0 +1,12 @@
+// types/notifications.ts - Create this file if TypeScript still complains
+declare module 'expo-notifications' {
+  interface NotificationContentInput {
+    data?: Record<string, unknown>;
+  }
+  
+  interface NotificationTriggerInput {
+    type?: string;
+    seconds?: number;
+    repeats?: boolean;
+  }
+}

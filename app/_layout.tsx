@@ -1,9 +1,11 @@
+// app/_layout.tsx - UPDATED VERSION
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { NotificationProvider } from '@/contexts/NotificationContext'; // ADD THIS IMPORT
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -23,6 +25,7 @@ function RootNavigator() {
         <>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="product" />
+          <Stack.Screen name="chat" /> {/* ADD THIS LINE - for chat screens */}
         </>
       )}
       <Stack.Screen name="+not-found" />
@@ -54,8 +57,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
-        <StatusBar style="auto" />
+        <NotificationProvider> {/* ADD THIS LINE */}
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </NotificationProvider> {/* ADD THIS LINE */}
       </AuthProvider>
     </SafeAreaProvider>
   );
