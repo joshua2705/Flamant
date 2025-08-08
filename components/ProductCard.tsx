@@ -12,12 +12,14 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
 
-  const handlePress = () => {
-    router.push(`/product/${product.id}`);
-  };
+  const handlePress = React.useCallback(() => {
+  router.push(`/product/${product.id}`);
+}, [router, product.id]);
 
   return (
-    <TouchableOpacity style={styles.container} onPress={handlePress}>
+    <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.85}
+  accessibilityRole="button"
+  accessibilityLabel={`View details for ${product.title}`}>
       <ImageWithFallback
         source={{ uri: product.images[0] }}
         style={styles.image}
@@ -47,29 +49,35 @@ export default function ProductCard({ product }: ProductCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderRadius: 18,
     flex: 1,
     overflow: 'hidden',
+    // Modern, soft, floating shadow
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.13,
+    shadowRadius: 18,
+    elevation: 7,
+    marginHorizontal: 8,
+    marginVertical: 10  // space between cards
   },
   image: {
     width: '100%',
-    height: 150,
+    height: 170,             // taller image for hero effect
     backgroundColor: '#F3F4F6',
+    borderTopLeftRadius: 18, // for smooth carded look
+    borderTopRightRadius: 18,
   },
   content: {
-    padding: 12,
+    padding: 16,             // generous padding for modern feel
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'Inter-SemiBold',
     color: '#111827',
-    marginBottom: 6,
+    marginBottom: 4,
+    lineHeight: 22,
   },
   price: {
     fontSize: 18,
@@ -80,7 +88,7 @@ const styles = StyleSheet.create({
   sellerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     gap: 8,
   },
   rating: {
@@ -98,11 +106,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#6B7280',
     flex: 1,
+    marginLeft: 8,
+    textAlign: 'right',
   },
   location: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    marginBottom: 2,
+    marginTop: 2,
   },
   locationText: {
     fontSize: 11,
@@ -111,3 +123,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+
+

@@ -11,21 +11,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import SearchBar from '@/components/SearchBar';
 import ProductCard from '@/components/ProductCard';
-import { Product } from '@/types';
+import { Product, User } from '@/types';
 import { productService } from '@/services/productService';
+import FoodLoadingAnimation from '@/components/FoodLoadingAnimation';
+import { useNavigation } from 'expo-router';
 
-// Get screen dimensions for responsive layout
 const { width: screenWidth } = Dimensions.get('window');
 
-// Calculate number of columns based on screen width
 const getColumns = () => {
-  if (screenWidth >= 1200) return 4; // Desktop monitors
-  if (screenWidth >= 768) return 3; // Tablets
-  return 2; // Mobile phones
+  if (screenWidth >= 1200) return 4;
+  if (screenWidth >= 768) return 3;
+  return 2;
 };
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user } = useAuth() as { user: User | null };
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,62 +33,58 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [columns, setColumns] = useState(getColumns());
 
-  // Update columns when screen size changes
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
       const newColumns = window.width >= 1200 ? 4 : window.width >= 768 ? 3 : 2;
       setColumns(newColumns);
     });
-
     return () => subscription?.remove();
   }, []);
 
-  // Load products on component mount
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Set up real-time subscription
   useEffect(() => {
-    // const unsubscribe = productService.subscribeToProducts((newProducts) => {
-    //   setProducts(newProducts);
-    //   setFilteredProducts(newProducts);
-    //   setLoading(false);
-    // });
-    // return unsubscribe;
     setProducts(products);
     setFilteredProducts(products);
   }, []);
+
+  const navigation = useNavigation();
+
+useEffect(() => {
+  navigation.setOptions({
+    headerShown: false,
+    tabBarStyle: loading && products.length === 0 ? { display: 'none' } : undefined,
+  });
+}, [loading, products]);
+
+
 
   const loadProducts = async () => {
     if (!user) return;
     try {
       setError(null);
       setLoading(true);
-      console.log('Getting all products');
       const productsList = await productService.getAllProducts();
-      console.log('Products obtained from db');
       setProducts(productsList);
       setFilteredProducts(productsList);
     } catch (err) {
       setError('Failed to load products. Please try again.');
-      console.error('Error loading products:', err);
     } finally {
       setLoading(false);
     }
   };
+
   const handleSearch = (query: string) => {
     if (query.trim() === '') {
       setFilteredProducts(products);
     } else {
-      // Local filtering for demo
       const filtered = products.filter(
         (product) =>
           product.title.toLowerCase().includes(query.toLowerCase()) ||
           product.description.toLowerCase().includes(query.toLowerCase()) ||
-          product.tags.some((tag) =>
-            tag.toLowerCase().includes(query.toLowerCase())
-          ) ||
+          product.tags.some((tag) => tag.toLowerCase().includes(query.toLowerCase())) ||
           product.category.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredProducts(filtered);
@@ -109,10 +105,11 @@ export default function HomeScreen() {
   if (loading && products.length === 0) {
     return (
       <View style={styles.container}>
-        <Header title="FlamingoFood" showSearch />
-        <View style={styles.loadingContainer}>
+        {/* <Header title="FlamingoFood"  showFavorites /> */}
+        {/* <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading delicious food...</Text>
-        </View>
+        </View> */}
+        <FoodLoadingAnimation/>
       </View>
     );
   }

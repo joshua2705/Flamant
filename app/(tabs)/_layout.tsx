@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Plus, MessageCircle } from 'lucide-react-native';
+import { ShoppingBag, CookingPot, MessageSquare } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,20 +12,25 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           ...styles.tabBar,
+          height: 49 + insets.bottom,
           paddingBottom: Math.max(insets.bottom, 8),
-          height: 60 + insets.bottom,
         },
         tabBarActiveTintColor: '#ee5899',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: {
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Buy',
           tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} strokeWidth={2} />
+            <ShoppingBag size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -34,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'Sell',
           tabBarIcon: ({ size, color }) => (
-            <Plus size={size} color={color} strokeWidth={2} />
+            <CookingPot size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -43,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ size, color }) => (
-            <MessageCircle size={size} color={color} strokeWidth={2} />
+            <MessageSquare size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
