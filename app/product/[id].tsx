@@ -7,10 +7,10 @@ import {
   Alert,
   Dimensions,
   SafeAreaView,
-  ScrollView, // Re-added ScrollView for the main content
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Star, MapPin, User, MessageCircle } from 'lucide-react-native';
+import { Star, MapPin, User, MessageCircle, ArrowLeft } from 'lucide-react-native';
 import Header from '@/components/Header';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import { Product } from '@/types';
@@ -31,8 +31,6 @@ export default function ProductDetailScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // --- ADDED: State for quantity
-  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (id) {
@@ -56,45 +54,39 @@ export default function ProductDetailScreen() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  const handleContactSeller = async () => {
     if (!user) {
       Alert.alert('Login Required', 'Please login to contact the seller');
       return;
     }
-    
+
     if (!product) {
       Alert.alert('Error', 'Product information not available');
       return;
     }
-    
-    // Check if user is trying to contact themselves (for real users vs mock sellers)
-    // Since sellers are mock data, we'll allow all interactions for now
-    
+
     try {
       console.log('Starting chat with seller:', product.seller);
-      
-      // First, ensure current user is synced to chat Firebase
+
       const effectiveUserProfile = userProfile || {
         id: user.uid,
         name: user.displayName || user.email?.split('@')[0] || 'User',
         email: user.email || '',
       };
-      
+
       await chatUserService.syncUserToChatFirebase(user, effectiveUserProfile);
-      
-      // Create chat between buyer (current user) and seller (product owner)
+
       const chatId = await chatService.createChatRoomWithProduct(
-        user.uid,           // buyerId (real Firebase user)
-        product.sellerId,   // sellerId (mock user ID like "user1")
-        product.id,         // productId
+        user.uid,
+        product.sellerId,
+        product.id,
         {
           title: product.title,
           price: product.price,
           image: product.images[0],
         }
       );
-      
-      // Navigate to chat
+
       router.push({
         pathname: '/chat/[id]',
         params: {
@@ -102,16 +94,12 @@ export default function ProductDetailScreen() {
           otherUserId: product.sellerId,
           otherUserName: product.seller.name,
           productTitle: product.title,
-        }
+        },
       });
     } catch (error) {
       console.error('Error starting chat:', error);
       Alert.alert('Error', 'Failed to start chat with seller');
     }
-  };
-
-  const handleContactSeller = async () => {
-    await handlePlaceOrder();
   };
 
   const adjustQuantity = (change: number) => {
@@ -124,14 +112,9 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#111827" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loading...</Text>
-          <View style={styles.placeholder} />
-        </View>
-        <View style={styles.loadingContainer}>
+        <Header showBackButton={true} showSearch={false} title="Loading..." />
+        <View style={styles.fullscreen}>
+          <FoodLoadingAnimation />
           <Text style={styles.loadingText}>Loading product details...</Text>
         </View>
       </View>
@@ -141,38 +124,13 @@ export default function ProductDetailScreen() {
   if (error || !product) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#111827" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Error</Text>
-          <View style={styles.placeholder} />
-        </View>
-        <View style={styles.errorContainer}>
+        <Header showBackButton={true} showSearch={false} title="Error" />
+        <View style={styles.fullscreen}>
           <Text style={styles.errorText}>{error || 'Product not found'}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadProduct}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.fullscreen}>
-        <Text style={styles.loadingText}>Loading product details...</Text>
-      </View>
-    );
-  }
-
-  if (error || !product) {
-    return (
-      <View style={styles.fullscreen}>
-        <Text style={styles.errorText}>{error || 'Product not found'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadProduct}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -213,7 +171,6 @@ export default function ProductDetailScreen() {
               </View>
             </View>
 
-            {/* --- ADDED: Quantity Selector UI --- */}
             <View style={styles.quantityContainer}>
               <Text style={styles.quantityLabel}>Quantity</Text>
               <View style={styles.quantityControl}>
@@ -234,16 +191,8 @@ export default function ProductDetailScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            {/* --- END: Quantity Selector UI --- */}
 
-            <TouchableOpacity style={styles.orderButton} onPress={handlePlaceOrder}>
-              <Text style={styles.orderButtonText}>Place Order</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-            <TouchableOpacity style={styles.orderButton} onPress={handlePlaceOrder}>
+            <TouchableOpacity style={styles.orderButton} onPress={handleContactSeller}>
               <Text style={styles.orderButtonText}>Contact Seller</Text>
             </TouchableOpacity>
           </View>
@@ -365,7 +314,6 @@ const styles = StyleSheet.create({
     maxWidth: '60%',
     textAlign: 'right',
   },
-  // --- ADDED: Styles for the new quantity selector
   quantityContainer: {
     width: '100%',
     flexDirection: 'row',
@@ -402,7 +350,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#111827',
   },
-  // --- END: Styles for the new quantity selector
   orderButton: {
     backgroundColor: '#ee5899',
     borderRadius: 30,
