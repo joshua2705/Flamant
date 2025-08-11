@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { ShoppingBag, CookingPot, MessageSquare } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
@@ -17,8 +17,9 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: '#ee5899',
         tabBarInactiveTintColor: '#9CA3AF',
-        tabBarLabelStyle: styles.tabBarLabel,
+        // tabBarLabelStyle is not needed here as we will handle it with a custom component
         tabBarItemStyle: {
+          // You can remove flexDirection from here if you wrap it in a View
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
@@ -30,8 +31,12 @@ export default function TabLayout() {
         options={{
           title: 'Buy',
           tabBarIcon: ({ size, color }) => (
-            <ShoppingBag size={size} color={color} strokeWidth={2} />
+            <View style={styles.tabItem}>
+              <ShoppingBag size={size} color={color} strokeWidth={2} />
+              <Text style={[styles.tabBarLabel, { color }]}>Buy</Text>
+            </View>
           ),
+          tabBarLabel: () => null, // Hide the default label
         }}
       />
       <Tabs.Screen
@@ -39,8 +44,12 @@ export default function TabLayout() {
         options={{
           title: 'Sell',
           tabBarIcon: ({ size, color }) => (
-            <CookingPot size={size} color={color} strokeWidth={2} />
+            <View style={styles.tabItem}>
+              <CookingPot size={size} color={color} strokeWidth={2} />
+              <Text style={[styles.tabBarLabel, { color }]}>Sell</Text>
+            </View>
           ),
+          tabBarLabel: () => null,
         }}
       />
       <Tabs.Screen
@@ -48,8 +57,12 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ size, color }) => (
-            <MessageSquare size={size} color={color} strokeWidth={2} />
+            <View style={styles.tabItem}>
+              <MessageSquare size={size} color={color} strokeWidth={2} />
+              <Text style={[styles.tabBarLabel, { color }]}>Chat</Text>
+            </View>
           ),
+          tabBarLabel: () => null,
         }}
       />
     </Tabs>
@@ -63,8 +76,15 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     paddingTop: 8,
   },
+  tabItem: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 5,
+  },
   tabBarLabel: {
     fontFamily: 'Inter-Medium',
     fontSize: 12,
+    marginTop: 2, // Add some space between the icon and the text
   },
 });

@@ -114,7 +114,6 @@ export default function ProductDetailScreen() {
       <View style={styles.container}>
         <Header showBackButton={true} showSearch={false} title="Loading..." />
         <View style={styles.fullscreen}>
-          <FoodLoadingAnimation />
           <Text style={styles.loadingText}>Loading product details...</Text>
         </View>
       </View>
@@ -261,11 +260,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   productImage: {
-    width: '70%',
+    width: '100%',
     height: '100%',
-    resizeMode: 'contain',
+    resizeMode: 'cover',
     borderRadius: 12,
   },
   textContainer: {
