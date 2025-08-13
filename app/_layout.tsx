@@ -8,23 +8,29 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+//Note: This file does not really load the layout
+//None of this code is actually needed except the return statement
+
 function RootNavigator() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return null; // Or a loading screen
+    return null;
+  }
+
+  if (!user) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+    );
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <Stack.Screen name="auth" />
-      ) : (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="product" />
-        </>
-      )}
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="product" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

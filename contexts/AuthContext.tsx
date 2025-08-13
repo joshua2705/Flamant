@@ -31,10 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async firebaseUser => {
       setUser(firebaseUser);
-      setLoading(false);
-      
       if (firebaseUser) {
         try {
           const profile = await userService.getUserById(firebaseUser.uid);
@@ -45,8 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null);
       }
+      setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 

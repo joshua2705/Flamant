@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
-import { router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Index() {
-  useEffect(() => {
-    // Navigate using the router hook
-    router.replace('/auth');
-  }, []);
+  const { user, loading } = useAuth();
 
-  return null; // no visible content needed here
+  if (loading) return null;   
+
+  return <Redirect href={user ? '/(tabs)' : '/auth'} />;
 }
