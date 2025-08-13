@@ -1,6 +1,11 @@
 import { FormError } from "@/types";
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 
+
+export default function errorHandler() {
+  return null;
+}
+
 export const validateForm = (email:string, password:string) => {
         const newErrors: FormError = {};
 

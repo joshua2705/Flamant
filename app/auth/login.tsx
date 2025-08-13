@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
-import { validateForm, handleAuthError, handleSsoError } from './lib/errorHandler'
+import { validateForm, handleAuthError, handleSsoError } from './errorHandler'
 
 const { height } = Dimensions.get('window');
 

@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
-import { validateSignUpForm, handleAuthError, handleSsoError } from './lib/errorHandler'
+import { validateSignUpForm, handleAuthError, handleSsoError } from './errorHandler'
 import { FormError } from '@/types';
 
 const { height } = Dimensions.get('window');

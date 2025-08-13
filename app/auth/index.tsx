@@ -26,7 +26,7 @@ import {
   validateForm,
   handleAuthError,
   handleSsoError,
-} from './lib/errorHandler';
+} from './errorHandler';
 const { height } = Dimensions.get('window');
 
 export default function AuthIndex() {
