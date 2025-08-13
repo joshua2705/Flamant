@@ -51,22 +51,27 @@ export default function ChatScreen() {
       return;
     }
 
-    // Create userProfile from auth user if it doesn't exist
-    const effectiveUserProfile = userProfile || {
-      id: user.uid,
-      name: user.displayName || user.email?.split('@')[0] || 'User',
-      email: user.email || '',
-    };
+    // // Create userProfile from auth user if it doesn't exist
+    // const effectiveUserProfile = userProfile || {
+    //   id: user.uid,
+    //   name: user.email?.split('@')[0] || 'User',
+    //   email: user.email || '',
+    // };
 
-    console.log('Using effectiveUserProfile:', effectiveUserProfile);
+    // console.log('Using effectiveUserProfile:', effectiveUserProfile);
 
     // Sync user from main Firebase to chat Firebase
     const syncUser = async () => {
       try {
         console.log('Starting sync to chat Firebase...');
-        await chatUserService.syncUserToChatFirebase(user, effectiveUserProfile);
+        if (userProfile) { // This condition ensures userProfile is loaded before syncing
+        await chatUserService.syncUserToChatFirebase(user, userProfile);
         console.log('User synced successfully!');
         setUserSynced(true);
+      } else {
+        console.log('User profile not available yet. Skipping sync.');
+        // The useEffect hook will re-run when userProfile is updated
+      }
       } catch (error: any) {
         console.error('❌ Error syncing user:', error);
         setLoading(false);

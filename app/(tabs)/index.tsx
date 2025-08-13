@@ -25,13 +25,29 @@ const getColumns = () => {
 };
 
 export default function HomeScreen() {
-  const { user } = useAuth() as { user: User | null };
+  const { user, userProfile } = useAuth();
+  console.log('User Profile Name:', userProfile?.name);
+  //console.log('Current user object:', JSON.stringify(user, null, 2));
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [columns, setColumns] = useState(getColumns());
+
+  const getFirstName = (fullName: string) => fullName.split(' ')[0];
+
+  const toProperCase = (str: string) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+  const headerTitle = React.useMemo(() => {
+    if (userProfile?.name) {
+      const firstName = getFirstName(userProfile.name);
+      return `Welcome, ${toProperCase(firstName)}`;
+    }
+    return 'Flamant Food';
+  }, [userProfile]);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
@@ -116,7 +132,7 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      <Header title="FlamingoFood" showFavorites />
+      <Header title={headerTitle} showFavorites />
       <SearchBar onSearch={handleSearch} />
 
       {error && (
