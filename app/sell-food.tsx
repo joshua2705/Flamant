@@ -50,6 +50,42 @@ export default function SellFoodScreen() {
     }
   };
 
+  // Take photo with camera
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission required',
+        'We need camera permissions to take a photo'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setImages((prev) => [...prev, result.assets[0].uri]);
+    }
+  };
+
+  // Show choice between camera or gallery
+  const handleAddPhoto = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Gallery', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
@@ -154,7 +190,10 @@ export default function SellFoodScreen() {
                 </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={handleAddPhoto}
+            >
               <Camera size={32} color="#9CA3AF" strokeWidth={2} />
               <Text style={styles.addImageText}>Add Photo</Text>
             </TouchableOpacity>

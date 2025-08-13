@@ -157,11 +157,12 @@ export const productService = {
       // Upload images first
       const imageUrls: string[] = [];
       for (let i = 0; i < imageUris.length; i++) {
+        console.log(`Uploading image ${i + 1}/${imageUris.length}`);
         const imagePath = `${Date.now()}_${i}.jpg`;
         const imageUrl = await this.uploadImage(imageUris[i], imagePath);
         imageUrls.push(imageUrl);
       }
-
+      console.log('Obtained image urls:', imageUrls);
       // Create product document
       const docRef = await addDoc(collection(db, PRODUCTS_COLLECTION), {
         ...productData,
