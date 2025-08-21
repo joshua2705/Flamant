@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, Text, TouchableOpacity, StyleSheet, ImageProps } from 'react-native';
 import { ImageOff, RefreshCw } from 'lucide-react-native';
 
@@ -16,6 +16,21 @@ export default function ImageWithFallback({
   ...props
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (
+      // Check if source has uri and it is "[]"
+      typeof source === "object" &&
+      source !== null &&
+      "uri" in source &&
+      (source.uri === "[]" || !source.uri)
+    ) {
+      setHasError(true);
+    } else {
+      // Reset error if source changes to valid URI
+      setHasError(false);
+    }
+  }, [source]);
 
   const handleError = () => {
     setHasError(true);
