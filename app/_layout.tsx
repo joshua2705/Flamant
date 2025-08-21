@@ -30,7 +30,6 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="product" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

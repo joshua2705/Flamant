@@ -14,6 +14,7 @@ import ImageWithFallback from '@/components/ImageWithFallback';
 import { useAuth } from '@/contexts/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { productService } from '@/services/productService';
+import Header from '@/components/Header'; // Import the Header component
 
 export default function SellFoodScreen() {
   const router = useRouter();
@@ -160,16 +161,12 @@ export default function SellFoodScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#111827" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sell Food</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <Header
+        title="Sell Food"
+        showBackButton={true}
+        showLogo={false}
+        onBackPress={() => router.back()}
+      />
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
@@ -296,20 +293,6 @@ export default function SellFoodScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: '#111827' },
-  placeholder: { width: 40 },
   content: { flex: 1, padding: 20 },
   section: { marginBottom: 24 },
   sectionTitle: {

@@ -12,12 +12,19 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
 
-  const handlePress = () => {
-    router.push(`/product/${product.id}`);
-  };
-
+  const handlePress = React.useCallback(() => {
+    router.push({
+      pathname: `/product/[id]`,
+      params: {
+        id: product.id,
+        product: JSON.stringify(product), // Serialize product to string
+      },
+    });
+  }, [router, product]);
   return (
-    <TouchableOpacity style={styles.container} onPress={handlePress}>
+    <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.85}
+  accessibilityRole="button"
+  accessibilityLabel={`View details for ${product.title}`}>
       <ImageWithFallback
         source={{ uri: product.images[0] }}
         style={styles.image}
@@ -36,10 +43,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </View>
           <Text style={styles.sellerName}>{product.seller.name}</Text>
         </View>
-        <View style={styles.location}>
-          <MapPin size={12} color="#9CA3AF" strokeWidth={2} />
-          <Text style={styles.locationText}>{product.location}</Text>
-        </View>
       </View>
     </TouchableOpacity>
   );
@@ -47,7 +50,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 16,
     flex: 1,
     overflow: 'hidden',

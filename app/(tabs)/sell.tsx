@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Package, Star, MapPin } from 'lucide-react-native';
+import { Plus, Package } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 import { Product } from '@/types';
-import { mockProducts } from '@/data/mockData';
 import { productService } from '@/services/productService';
 
 // Get screen dimensions for responsive layout
