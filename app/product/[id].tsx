@@ -19,6 +19,7 @@ import { chatService } from '@/services/chatService';
 import { chatUserService } from '@/services/chatUserService';
 import { productService } from '@/services/productService';
 import FoodLoadingAnimation from '@/components/FoodLoadingAnimation';
+import Carousel from 'react-native-reanimated-carousel';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,11 +28,10 @@ export default function ProductDetailScreen() {
   const { id, product: productParam } = useLocalSearchParams<{ id: string; product?: string }>();
 
   const { user, userProfile } = useAuth();
-
-  const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Parse product from params on mount
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function ProductDetailScreen() {
 
   useEffect(() => {
     if (product) {
-      console.log('Image URL:', product.images[0]);
+      console.log('Image URL:', product.images);
     }
   }, [product]);
 
@@ -114,6 +114,8 @@ export default function ProductDetailScreen() {
   };
 
   const encodeLastSlash = (path: string): string => {
+    console.log("path", path);
+    if (!path) return path;
     const lastSlashIndex = path.lastIndexOf('/');
     if (lastSlashIndex === -1) return path; // no slash to replace
     return (
@@ -122,6 +124,8 @@ export default function ProductDetailScreen() {
       path.substring(lastSlashIndex + 1)
     );
   }
+
+
 
   // ...Rest of your component UI rendering (loading, error, product display, quantity adjustment, etc.)
 
@@ -145,6 +149,8 @@ export default function ProductDetailScreen() {
     );
   }
 
+  const displayImages = product.images?.length > 0 ? product.images : ['empty'];
+
   return (
     <SafeAreaView style={styles.container}>
       <Header
@@ -156,11 +162,27 @@ export default function ProductDetailScreen() {
       <View style={{ flex: 1 }}>
         <ScrollView style={styles.detailsCard} contentContainerStyle={{ paddingBottom: 50 }}>
           <View style={styles.imageWrapper}>
-            <ImageWithFallback
-              source={{ uri: encodeLastSlash(product.images[0]) }}
-              style={styles.productImage}
-              fallbackText="Food image unavailable"
+            <Carousel
+              width={screenWidth}
+              height={screenWidth / 2}
+              data={displayImages}
+              onSnapToItem={(index) => setCurrentIndex(index)}
+              loop={false}
+              renderItem={({ item }) => (
+                <ImageWithFallback source={{ uri: encodeLastSlash(item) }} style={styles.productImage} />
+              )}
             />
+            <View style={styles.pagination}>
+              {product.images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    currentIndex === index && styles.activeDot
+                  ]}
+                />
+              ))}
+            </View>
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.productTitle}>{product.title}</Text>
@@ -203,6 +225,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    position: 'absolute',
+    bottom: 10,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    backgroundColor: '#ccc',
+  },
+  activeDot: {
+    backgroundColor: '#ee5899',
+  },
   loadingText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
@@ -234,14 +274,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     width: '100%',
     height: '100%',
-    maxWidth: 400,
     padding: 30,
     marginHorizontal: 24,
     alignSelf: 'center',
   },
   imageWrapper: {
-    width: '100%',
-    height: 180,
     marginBottom: 24,
     justifyContent: 'center',
     alignItems: 'center',
@@ -252,7 +289,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
-    borderRadius: 12,
   },
   textContainer: {
     alignItems: 'flex-start',

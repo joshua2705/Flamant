@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, Modal, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, ScrollView, TouchableOpacity, StyleSheet, Modal, Dimensions, PanResponder, Text, Animated } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import ImageWithFallback from './ImageWithFallback';
+
 
 interface ImageGalleryProps {
   images: string[];
@@ -22,6 +23,10 @@ export default function ImageGallery({
 }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  
+  // Animation values for carousel
+  const translateX = useRef(new Animated.Value(0)).current;
+  const fullscreenTranslateX = useRef(new Animated.Value(0)).current;
 
   if (!images || images.length === 0) {
     return (
@@ -35,34 +40,108 @@ export default function ImageGallery({
     );
   }
 
-  const handleImagePress = (index: number) => {
-    setSelectedIndex(index);
+  const handleSwipe = (direction: 'left' | 'right', isFullscreen = false) => {
+    const currentTranslate = isFullscreen ? fullscreenTranslateX : translateX;
+    
+    if (direction === 'left' && selectedIndex < images.length - 1) {
+      setSelectedIndex(prev => prev + 1);
+    } else if (direction === 'right' && selectedIndex > 0) {
+      setSelectedIndex(prev => prev - 1);
+    } else if (direction === 'left' && selectedIndex === images.length - 1) {
+      // Loop to first image
+      setSelectedIndex(0);
+    } else if (direction === 'right' && selectedIndex === 0) {
+      // Loop to last image
+      setSelectedIndex(images.length - 1);
+    }
+    
+    // Reset animation
+    Animated.spring(currentTranslate, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const createPanResponder = (isFullscreen = false) => {
+    const currentTranslate = isFullscreen ? fullscreenTranslateX : translateX;
+    
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        currentTranslate.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const swipeThreshold = screenWidth * 0.25; // 25% of screen width
+        
+        if (Math.abs(gestureState.dx) > swipeThreshold) {
+          if (gestureState.dx > 0) {
+            handleSwipe('right', isFullscreen);
+          } else {
+            handleSwipe('left', isFullscreen);
+          }
+        } else {
+          // Snap back to center
+          Animated.spring(currentTranslate, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    });
+  };
+
+  const mainPanResponder = createPanResponder(false);
+  const fullscreenPanResponder = createPanResponder(true);
+
+  const handleImagePress = () => {
     if (enableFullscreen) {
       setIsFullscreenVisible(true);
     }
   };
 
-  const navigateImage = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      setSelectedIndex(prev => (prev > 0 ? prev - 1 : images.length - 1));
-    } else {
-      setSelectedIndex(prev => (prev < images.length - 1 ? prev + 1 : 0));
-    }
-  };
-
   return (
     <View style={[styles.container, style]}>
-      {/* Main Image */}
-      <TouchableOpacity
-        onPress={() => handleImagePress(selectedIndex)}
-        disabled={!enableFullscreen}
-      >
-        <ImageWithFallback
-          source={{ uri: images[selectedIndex] }}
-          style={[styles.mainImage, imageStyle]}
-          fallbackText="Image unavailable"
-        />
-      </TouchableOpacity>
+      {/* Main Image Carousel */}
+      <View style={styles.carouselContainer} {...mainPanResponder.panHandlers}>
+        <Animated.View
+          style={[
+            styles.imageWrapper,
+            {
+              transform: [{ translateX }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleImagePress}
+            disabled={!enableFullscreen}
+            activeOpacity={0.9}
+          >
+            <ImageWithFallback
+              source={{ uri: images[selectedIndex] }}
+              style={[styles.mainImage, imageStyle]}
+              fallbackText="Image unavailable"
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+
+      {/* Page Indicators */}
+      {images.length > 1 && (
+        <View style={styles.indicatorContainer}>
+          {images.map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => setSelectedIndex(index)}
+              style={[
+                styles.indicator,
+                selectedIndex === index && styles.activeIndicator,
+              ]}
+            />
+          ))}
+        </View>
+      )}
 
       {/* Thumbnails */}
       {showThumbnails && images.length > 1 && (
@@ -70,6 +149,7 @@ export default function ImageGallery({
           horizontal
           style={styles.thumbnailContainer}
           showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.thumbnailContent}
         >
           {images.map((image, index) => (
             <TouchableOpacity
@@ -90,6 +170,11 @@ export default function ImageGallery({
         </ScrollView>
       )}
 
+      {/* Swipe Hint Text */}
+      {images.length > 1 && (
+        <Text style={styles.swipeHint}>Swipe left or right to browse images</Text>
+      )}
+
       {/* Fullscreen Modal */}
       <Modal
         visible={isFullscreenVisible}
@@ -105,33 +190,24 @@ export default function ImageGallery({
             <X size={24} color="#ffffff" strokeWidth={2} />
           </TouchableOpacity>
 
-          <View style={styles.fullscreenImageContainer}>
-            <ImageWithFallback
-              source={{ uri: images[selectedIndex] }}
-              style={styles.fullscreenImage}
-              fallbackText="Image unavailable"
-            />
+          <View style={styles.fullscreenImageContainer} {...fullscreenPanResponder.panHandlers}>
+            <Animated.View
+              style={[
+                styles.fullscreenImageWrapper,
+                {
+                  transform: [{ translateX: fullscreenTranslateX }],
+                },
+              ]}
+            >
+              <ImageWithFallback
+                source={{ uri: images[selectedIndex] }}
+                style={styles.fullscreenImage}
+                fallbackText="Image unavailable"
+              />
+            </Animated.View>
           </View>
 
-          {images.length > 1 && (
-            <>
-              <TouchableOpacity
-                style={[styles.navButton, styles.prevButton]}
-                onPress={() => navigateImage('prev')}
-              >
-                <ChevronLeft size={24} color="#ffffff" strokeWidth={2} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.navButton, styles.nextButton]}
-                onPress={() => navigateImage('next')}
-              >
-                <ChevronRight size={24} color="#ffffff" strokeWidth={2} />
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* Image Counter */}
+          {/* Fullscreen Image Counter */}
           <View style={styles.imageCounter}>
             <View style={styles.counterBadge}>
               <Text style={styles.counterText}>
@@ -139,6 +215,21 @@ export default function ImageGallery({
               </Text>
             </View>
           </View>
+
+          {/* Fullscreen Indicators */}
+          {images.length > 1 && (
+            <View style={styles.fullscreenIndicatorContainer}>
+              {images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.fullscreenIndicator,
+                    selectedIndex === index && styles.activeFullscreenIndicator,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
         </View>
       </Modal>
     </View>
@@ -149,13 +240,41 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#F3F4F6',
   },
+  carouselContainer: {
+    overflow: 'hidden',
+  },
+  imageWrapper: {
+    width: '100%',
+  },
   mainImage: {
     width: '100%',
     height: 200,
     backgroundColor: '#F3F4F6',
   },
+  indicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 4,
+  },
+  activeIndicator: {
+    backgroundColor: '#ee5899',
+    width: 24,
+    borderRadius: 4,
+  },
   thumbnailContainer: {
     marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  thumbnailContent: {
     paddingHorizontal: 4,
   },
   thumbnail: {
@@ -172,9 +291,16 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
   },
+  swipeHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    fontFamily: 'Inter-Regular',
+  },
   fullscreenContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -183,13 +309,19 @@ const styles = StyleSheet.create({
     top: 50,
     right: 20,
     zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     padding: 8,
   },
   fullscreenImageContainer: {
     width: screenWidth,
-    height: screenHeight * 0.8,
+    height: screenHeight * 0.7,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImageWrapper: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -198,23 +330,9 @@ const styles = StyleSheet.create({
     height: '90%',
     resizeMode: 'contain',
   },
-  navButton: {
-    position: 'absolute',
-    top: '50%',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 12,
-    zIndex: 10,
-  },
-  prevButton: {
-    left: 20,
-  },
-  nextButton: {
-    right: 20,
-  },
   imageCounter: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 100,
     alignSelf: 'center',
   },
   counterBadge: {
@@ -227,5 +345,24 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
+  },
+  fullscreenIndicatorContainer: {
+    position: 'absolute',
+    bottom: 60,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 3,
+  },
+  activeFullscreenIndicator: {
+    backgroundColor: '#ffffff',
+    width: 20,
+    borderRadius: 3,
   },
 });

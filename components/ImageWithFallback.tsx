@@ -23,7 +23,7 @@ export default function ImageWithFallback({
       typeof source === "object" &&
       source !== null &&
       "uri" in source &&
-      (source.uri === "[]" || !source.uri)
+      (source.uri === "empty" || !source.uri)
     ) {
       setHasError(true);
     } else {
@@ -66,8 +66,6 @@ const styles = StyleSheet.create({
   },
   fallbackContent: {
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
   },
   fallbackText: {
     fontSize: 14,
