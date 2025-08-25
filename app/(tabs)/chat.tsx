@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { chatUserService } from '@/services/chatUserService';
+import { orderService } from '@/services/orderService';
 
 interface ChatWithUser {
   id: string;
@@ -17,6 +18,7 @@ interface ChatWithUser {
     title: string;
     price: number;
     image?: string;
+    isAvailable?: boolean;
   };
   buyerId?: string;
   sellerId?: string;
@@ -184,6 +186,7 @@ export default function ChatScreen() {
   };
 
   const ChatItem = ({ chat }: { chat: ChatWithUser }) => (
+    //here?
     <TouchableOpacity style={styles.chatItem} onPress={() => handleChatPress(chat)}>
       <View style={styles.avatar}>
         <User size={24} color="#ee5899" strokeWidth={2} />
@@ -199,9 +202,14 @@ export default function ChatScreen() {
         
         {/* Show product info if it's a product chat */}
         {chat.isProductChat && chat.productInfo && (
-          <Text style={styles.productTitle} numberOfLines={1}>
-            {chat.productInfo.title}
-          </Text>
+          <View style={styles.productTitleContainer}>
+            <Text style={styles.productTitle} numberOfLines={1}>
+               {chat.productInfo.title}
+            </Text>
+            {!chat.productInfo.isAvailable && (
+            <Text style={styles.soldLabel}>SOLD</Text>
+            )}
+          </View>
         )}
         
         <Text 
@@ -464,6 +472,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#9CA3AF',
   },
+
+  productTitleContainer: { // ADD THIS STYLE
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+
+  soldLabel: { // ADD THIS STYLE
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#DC2626',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+    textTransform: 'uppercase',
+  },
+  
   productTitle: {
     fontSize: 13,
     fontFamily: 'Inter-Medium',

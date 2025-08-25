@@ -17,6 +17,16 @@ export interface User {
   createdAt: Date;
 }
 
+export interface Order {
+  id: string;
+  productId: string;
+  sellerId: string;
+  buyerId: string;
+  price:number;
+  createdAt: Date;
+  status: 'completed' | 'pending';
+}
+
 export interface Product {
   id: string;
   title: string;

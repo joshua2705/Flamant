@@ -4,6 +4,7 @@ import { Star, MapPin } from 'lucide-react-native';
 import ImageWithFallback from './ImageWithFallback';
 import { Product } from '@/types';
 import { useRouter } from 'expo-router';
+import SoldBanner from '@/components/SoldBanner';
 
 interface ProductCardProps {
   product: Product;
@@ -20,11 +21,14 @@ export default function ProductCard({ product }: ProductCardProps) {
     <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.85}
   accessibilityRole="button"
   accessibilityLabel={`View details for ${product.title}`}>
+    <View style={styles.imageContainer}> {/* Added a new View for positioning */}
       <ImageWithFallback
         source={{ uri: product.images[0] }}
         style={styles.image}
         fallbackText="Food image unavailable"
       />
+      {!product.isAvailable && <SoldBanner/>} {/* This is the new line */}
+      </View>
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={2}>
           {product.title}
@@ -69,6 +73,13 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18, // for smooth carded look
     borderTopRightRadius: 18,
   },
+
+  imageContainer: { // Added a new style for the image and banner wrapper
+    position: 'relative',
+    width: '100%',
+    height: 170,
+  },
+  
   content: {
     padding: 16,             // generous padding for modern feel
   },
