@@ -1,9 +1,11 @@
-
+//  finalllll-verison
 import React, { createContext, useContext, useEffect, useRef, ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from './AuthContext';
-import { notificationService, NotificationData } from '@/services/notificationService';
+import { notificationService } from '@/services/notificationService';
 
 interface NotificationContextType {
   initializeNotifications: () => Promise<void>;
@@ -11,17 +13,10 @@ interface NotificationContextType {
   setBadgeCount: (count: number) => Promise<void>;
 }
 
-// Create context with default values
 const NotificationContext = createContext<NotificationContextType>({
-  initializeNotifications: async () => {
-    console.log('Default initializeNotifications called');
-  },
-  clearChatNotifications: async (chatId: string) => {
-    console.log('Default clearChatNotifications called for:', chatId);
-  },
-  setBadgeCount: async (count: number) => {
-    console.log('Default setBadgeCount called with:', count);
-  },
+  initializeNotifications: async () => {},
+  clearChatNotifications: async () => {},
+  setBadgeCount: async () => {},
 });
 
 export const useNotifications = () => {
@@ -39,12 +34,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    if (user) {
-      initializeNotifications();
+    // Only initialize on physical devices
+    if (user && Device.isDevice) {
+      initializeNotifications().catch((error) => {
+        console.error('Failed to initialize notifications:', error);
+      });
     }
 
     return () => {
-      // Cleanup listeners
       if (notificationListener.current) {
         notificationListener.current.remove();
       }
@@ -56,56 +53,66 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const initializeNotifications = async () => {
     try {
-      console.log('🔔 Initializing notifications...');
+      console.log(' Initializing notifications...');
       
-      // Register for push notifications
+      // Skip on simulators
+      // if (!Device.isDevice) {
+      //   console.log('Skipping notifications on simulator');
+      //   return;
+      // }
+
+      // Skip on web
+      // if (Platform.OS === 'web') {
+      //   console.log('Skipping notifications on web');
+      //   return;
+      // }
+
       const pushToken = await notificationService.registerForPushNotifications();
       
       if (pushToken && user) {
-        // Save token to Firebase
         await notificationService.saveUserPushToken(user.uid, pushToken);
-        console.log('✅ Push token saved for user:', user.uid);
+        console.log(' Push token saved for user:', user.uid);
+        console.log(' Push token:', pushToken);
       }
 
-      // Handle notifications received while app is in foreground
+      // Add notification listeners only on physical devices
       notificationListener.current = notificationService.addNotificationReceivedListener(
-        (notification) => {
-          console.log('📱 Notification received while app open:', notification);
+        (notification: any) => {
+          console.log('📨 Notification received while app open:', notification);
         }
       );
 
-      // Handle notification taps
       responseListener.current = notificationService.addNotificationResponseReceivedListener(
-        (response) => {
+        (response: any) => {
           console.log('👆 Notification tapped:', response);
-          const data = response.notification.request.content.data as NotificationData;
+          const data = response.notification.request.content.data;
           handleNotificationTap(data);
         }
       );
 
-      // Check if app was opened by tapping a notification
+      // Check for notification that opened the app
       const lastNotificationResponse = await notificationService.getLastNotificationResponse();
       if (lastNotificationResponse) {
-        console.log('🚀 App opened from notification:', lastNotificationResponse);
-        const data = lastNotificationResponse.notification.request.content.data as NotificationData;
+        console.log('App opened from notification:', lastNotificationResponse);
+        const data = lastNotificationResponse.notification.request.content.data;
         handleNotificationTap(data);
       }
 
     } catch (error) {
-      console.error('Error initializing notifications:', error);
+      console.error('💥 Error initializing notifications:', error);
+      // Don't throw - just log and continue
     }
   };
 
-  const handleNotificationTap = (data: NotificationData | null) => {
-    if (!data?.chatId) {
-      console.log(' No chat ID in notification data');
-      return;
-    }
-
-    console.log('Navigating to chat:', data.chatId);
-    
+  const handleNotificationTap = (data: any) => {
     try {
-      // Navigate to the specific chat
+      if (!data?.chatId) {
+        console.log('⚠️ No chat ID in notification data');
+        return;
+      }
+
+      console.log(' Navigating to chat:', data.chatId);
+      
       router.push({
         pathname: '/chat/[id]' as const,
         params: {
@@ -117,15 +124,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
       // Clear notifications for this chat
       notificationService.clearChatNotifications(data.chatId);
+      
     } catch (error) {
-      console.error('Error navigating to chat:', error);
+      console.error(' Error navigating to chat:', error);
     }
   };
 
   const clearChatNotifications = async (chatId: string) => {
     try {
       await notificationService.clearChatNotifications(chatId);
-      console.log('Cleared notifications for chat:', chatId);
+      console.log('🧹 Cleared notifications for chat:', chatId);
     } catch (error) {
       console.error('Error clearing chat notifications:', error);
     }
@@ -135,7 +143,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     try {
       await notificationService.setBadgeCount(count);
     } catch (error) {
-      console.error('Error setting badge count:', error);
+      console.error('💥 Error setting badge count:', error);
     }
   };
 
@@ -145,9 +153,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setBadgeCount,
   };
 
-  return (
-    <NotificationContext.Provider value={contextValue}>
-      {children}
-    </NotificationContext.Provider>
-  );
+  // Wrap in error boundary
+  try {
+    return (
+      <NotificationContext.Provider value={contextValue}>
+        {children}
+      </NotificationContext.Provider>
+    );
+  } catch (error) {
+    console.error('NotificationProvider render error:', error);
+    // Fallback - return children without notification context
+    return <>{children}</>;
+  }
 };

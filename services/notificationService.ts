@@ -2,29 +2,24 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { doc, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
-import { chatDb } from '../config/chatFirebase';
+import { db } from '../config/firebase';
 
-// Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }) as Notifications.NotificationBehavior,
-});
-
-export interface NotificationData {
-  chatId: string;
-  senderId: string;
-  senderName: string;
-  messageText: string;
-  type: 'chat_message' | 'product_inquiry';
-  productId?: string;
-  [key: string]: any;
+// Only configure notifications on physical devices
+if (Device.isDevice && Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification: Notifications.Notification) => {
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      };
+    },
+  });
 }
 
 export const notificationService = {
-  // Register for push notifications and get token
   async registerForPushNotifications(): Promise<string | null> {
     try {
       if (!Device.isDevice) {
@@ -32,11 +27,9 @@ export const notificationService = {
         return null;
       }
 
-      // Check existing permissions
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
-      // Request permissions if not already granted
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
@@ -47,14 +40,11 @@ export const notificationService = {
         return null;
       }
 
-      // Get push token
+      // Make sure you have EXPO_PUBLIC_PROJECT_ID in your environment
       const tokenData = await Notifications.getExpoPushTokenAsync({
         projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
       });
 
-      console.log('Push token:', tokenData.data);
-
-      // Configure notification channel for Android
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('chat-messages', {
           name: 'Chat Messages',
@@ -72,10 +62,9 @@ export const notificationService = {
     }
   },
 
-  // Save user's push token to Firebase
   async saveUserPushToken(userId: string, pushToken: string) {
     try {
-      const userRef = doc(chatDb, 'users', userId);
+      const userRef = doc(db, 'users', userId);
       await setDoc(userRef, {
         pushToken,
         lastTokenUpdate: serverTimestamp(),
@@ -84,14 +73,12 @@ export const notificationService = {
           version: Platform.Version,
         }
       }, { merge: true });
-
       console.log('Push token saved for user:', userId);
     } catch (error) {
       console.error('Error saving push token:', error);
     }
   },
 
-  // Queue notification to be sent (store in Firebase for backend processing)
   async queueNotification(
     recipientId: string,
     senderId: string,
@@ -114,31 +101,25 @@ export const notificationService = {
         status: 'pending'
       };
 
-      await addDoc(collection(chatDb, 'notifications'), notificationData);
+      await addDoc(collection(db, 'notifications'), notificationData);
       console.log('Notification queued for:', recipientId);
     } catch (error) {
       console.error('Error queueing notification:', error);
     }
   },
 
-  // Handle notification received while app is open
   addNotificationReceivedListener(callback: (notification: Notifications.Notification) => void) {
     return Notifications.addNotificationReceivedListener(callback);
   },
 
-  // Handle notification tapped/clicked
-  addNotificationResponseReceivedListener(
-    callback: (response: Notifications.NotificationResponse) => void
-  ) {
+  addNotificationResponseReceivedListener(callback: (response: Notifications.NotificationResponse) => void) {
     return Notifications.addNotificationResponseReceivedListener(callback);
   },
 
-  // Get last notification response (for when app was closed and opened by notification)
   async getLastNotificationResponse(): Promise<Notifications.NotificationResponse | null> {
     return await Notifications.getLastNotificationResponseAsync();
   },
 
-  // Clear all notifications
   async clearAllNotifications() {
     try {
       await Notifications.dismissAllNotificationsAsync();
@@ -147,14 +128,14 @@ export const notificationService = {
     }
   },
 
-  // Clear notifications for specific chat
   async clearChatNotifications(chatId: string) {
     try {
       const notifications = await Notifications.getPresentedNotificationsAsync();
       const chatNotifications = notifications.filter(
-        notif => (notif.request.content.data as NotificationData)?.chatId === chatId
+        (notif: any) =>
+          notif.request.content.data?.chatId === chatId
       );
-      
+
       for (const notif of chatNotifications) {
         await Notifications.dismissNotificationAsync(notif.request.identifier);
       }
@@ -163,34 +144,11 @@ export const notificationService = {
     }
   },
 
-  // Set badge count
   async setBadgeCount(count: number) {
     try {
       await Notifications.setBadgeCountAsync(count);
     } catch (error) {
       console.error('Error setting badge count:', error);
-    }
-  },
-
-  // Schedule local notification (for testing) - FINAL FIXED VERSION
-  async scheduleLocalNotification(
-    title: string, 
-    body: string, 
-    data: NotificationData,
-    seconds: number = 1
-  ) {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: data as Record<string, unknown>,
-          sound: 'default',
-        },
-        trigger: { seconds } as any, // Type assertion to bypass the type error
-      });
-    } catch (error) {
-      console.error('Error scheduling local notification:', error);
     }
   }
 };
