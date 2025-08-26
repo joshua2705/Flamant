@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
+import CustomPicker, { PickerItem } from '@/components/itemPicker';
 
 import SoldBanner from '@/components/SoldBanner';
 
@@ -37,100 +38,256 @@ interface Message {
 }
 
 export default function ChatDetailScreen() {
+  console.log('🚀 ChatDetailScreen: Component initializing...');
+
+  // Debug: Check if useLocalSearchParams works
+  try {
+    const { id: chatId, otherUserId, otherUserName } = useLocalSearchParams<{
+      id: string;
+      otherUserId: string;
+      otherUserName: string;
+    }>();
+    console.log('✅ useLocalSearchParams successful:', { chatId, otherUserId, otherUserName });
+  } catch (error) {
+    console.error('❌ useLocalSearchParams failed:', error);
+  }
+
   const { id: chatId, otherUserId, otherUserName } = useLocalSearchParams<{
     id: string;
     otherUserId: string;
     otherUserName: string;
   }>();
-  const { user } = useAuth();
 
+  // Debug: Check if useAuth works
+  let user;
+  try {
+    const authResult = useAuth();
+    user = authResult.user;
+    console.log('✅ useAuth successful, user:', user?.uid || 'No user');
+  } catch (error) {
+    console.error('❌ useAuth failed:', error);
+    // Fallback if useAuth fails
+    user = null;
+  }
+
+  // Debug: State initialization
+  console.log('🔄 Initializing state variables...');
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [chatMeta, setChatMeta] = useState<any>(null);
   const [showSoldSheet, setShowSoldSheet] = useState(false);
-
   const [sellerProducts, setSellerProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedQuantity, setSelectedQuantity] = useState(0);
+  console.log('✅ State variables initialized');
 
+  // Debug: Ref initialization
+  console.log('🔄 Initializing refs...');
   const flatListRef = useRef<FlatList>(null);
+  console.log('✅ Refs initialized');
 
-  // Fetch seller's active listings
+  // Debug: First useEffect - Fetch seller's active listings
   useEffect(() => {
-    if (!user) return;
-    productService.getProductsBySeller(user.uid).then((products) => {
-      // Filter products where isAvailable is explicitly true or is not defined
-      setSellerProducts(products.filter(p => p.isAvailable === true || p.isAvailable === undefined));
-    });
+    console.log('🔄 useEffect 1: Fetching seller products...');
+    console.log('User check:', !!user);
+
+    if (!user) {
+      console.log('⚠️ useEffect 1: No user, skipping product fetch');
+      return;
+    }
+
+    try {
+      console.log('📡 Calling productService.getProductsBySeller for user:', user.uid);
+      productService.getProductsBySeller(user.uid)
+        .then((products) => {
+          console.log('✅ Products fetched successfully:', products?.length || 0);
+          // Filter products where isAvailable is explicitly true or is not defined
+          const filteredProducts = products.filter(p => p.isAvailable === true || p.isAvailable === undefined);
+          console.log('✅ Filtered products:', filteredProducts?.length || 0);
+          setSellerProducts(filteredProducts);
+        })
+        .catch((error) => {
+          console.error('❌ Error fetching seller products:', error);
+        });
+    } catch (error) {
+      console.error('❌ useEffect 1: Exception in product fetch:', error);
+    }
   }, [user]);
 
-  // Subscribe to chat metadata
+  // Debug: Second useEffect - Subscribe to chat metadata
   useEffect(() => {
-    if (!user || !chatId) return;
-    const unsub = chatService.subscribeToUserChats(user.uid, (chats) => {
-      const currentChat = chats.find((c) => c.id === chatId);
-      if (currentChat) {
-        setChatMeta(currentChat);
-      }
-    });
-    return unsub;
+    console.log('🔄 useEffect 2: Setting up chat metadata subscription...');
+    console.log('Parameters check:', { user: !!user, chatId });
+
+    if (!user || !chatId) {
+      console.log('⚠️ useEffect 2: Missing user or chatId, skipping subscription');
+      return;
+    }
+
+    try {
+      console.log('📡 Calling chatService.subscribeToUserChats for user:', user.uid);
+      const unsub = chatService.subscribeToUserChats(user.uid, (chats) => {
+        console.log('📨 Chat subscription callback - received chats:', chats?.length || 0);
+        try {
+          const currentChat = chats.find((c) => c.id === chatId);
+          console.log('🔍 Current chat found:', !!currentChat);
+          if (currentChat) {
+            console.log('✅ Setting chat meta:', currentChat);
+            setChatMeta(currentChat);
+          }
+        } catch (error) {
+          console.error('❌ Error processing chat subscription data:', error);
+        }
+      });
+      console.log('✅ Chat subscription setup complete');
+      return unsub;
+    } catch (error) {
+      console.error('❌ useEffect 2: Exception in chat subscription:', error);
+    }
   }, [chatId, user]);
 
-  // Subscribe to messages
+  // Debug: Third useEffect - Subscribe to messages
   useEffect(() => {
-    if (!user || !chatId) return;
-    const unsub = chatService.subscribeToMessages(chatId, (msgs) => {
-      setMessages(msgs);
-      setInitialLoading(false);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-    return unsub;
+    console.log('🔄 useEffect 3: Setting up messages subscription...');
+    console.log('Parameters check:', { user: !!user, chatId });
+
+    if (!user || !chatId) {
+      console.log('⚠️ useEffect 3: Missing user or chatId, skipping subscription');
+      return;
+    }
+
+    try {
+      console.log('📡 Calling chatService.subscribeToMessages for chat:', chatId);
+      const unsub = chatService.subscribeToMessages(chatId, (msgs) => {
+        console.log('📨 Messages subscription callback - received messages:', msgs?.length || 0);
+        try {
+          setMessages(msgs);
+          setInitialLoading(false);
+          console.log('✅ Messages updated, initial loading set to false');
+
+          // Debug: Scroll to end
+          setTimeout(() => {
+            console.log('🔄 Attempting to scroll to end...');
+            try {
+              flatListRef.current?.scrollToEnd({ animated: true });
+              console.log('✅ Scroll to end completed');
+            } catch (error) {
+              console.error('❌ Error scrolling to end:', error);
+            }
+          }, 100);
+        } catch (error) {
+          console.error('❌ Error processing messages subscription data:', error);
+        }
+      });
+      console.log('✅ Messages subscription setup complete');
+      return unsub;
+    } catch (error) {
+      console.error('❌ useEffect 3: Exception in messages subscription:', error);
+    }
   }, [chatId, user]);
 
+  // Debug: sendMessage function
   const sendMessage = async () => {
-    if (!newMessage.trim() || loading || !user) return;
+    console.log('🔄 sendMessage called');
+    console.log('Message check:', {
+      messageExists: !!newMessage.trim(),
+      loading,
+      user: !!user
+    });
+
+    if (!newMessage.trim() || loading || !user) {
+      console.log('⚠️ sendMessage: Validation failed, aborting');
+      return;
+    }
+
     const text = newMessage.trim();
+    console.log('📝 Sending message:', text);
+
     setNewMessage('');
     setLoading(true);
+
     try {
+      console.log('📡 Calling chatService.sendMessage...');
       await chatService.sendMessage(chatId, user.uid, text);
+      console.log('✅ Message sent successfully');
     } catch (error) {
+      console.error('❌ Error sending message:', error);
       Alert.alert('Error', 'Failed to send message.');
       setNewMessage(text);
     } finally {
       setLoading(false);
+      console.log('✅ sendMessage completed');
     }
   };
 
-  // Role & product status
-  const isSeller = user?.uid && chatMeta?.sellerId && user.uid === chatMeta.sellerId;
-  const isBuyer = user?.uid && chatMeta?.buyerId && user.uid === chatMeta.buyerId;
-  const isSold = chatMeta?.productInfo?.isAvailable === false;
-  const productTitle = chatMeta?.productInfo?.title || '';
-  const productPrice = chatMeta?.productInfo?.price;
-  const productId = chatMeta?.productId || '';
+  // Debug: Role calculations
+  console.log('🔄 Calculating user roles...');
+  let isSeller, isBuyer, isSold, productTitle, productPrice, productId;
 
+  try {
+    isSeller = user?.uid && chatMeta?.sellerId && user.uid === chatMeta.sellerId;
+    isBuyer = user?.uid && chatMeta?.buyerId && user.uid === chatMeta.buyerId;
+    isSold = chatMeta?.productInfo?.isAvailable === false;
+    productTitle = chatMeta?.productInfo?.title || '';
+    productPrice = chatMeta?.productInfo?.price;
+    productId = chatMeta?.productId || '';
+
+    console.log('✅ Role calculations:', {
+      isSeller,
+      isBuyer,
+      isSold,
+      productTitle,
+      productPrice,
+      productId
+    });
+  } catch (error) {
+    console.error('❌ Error calculating roles:', error);
+    // Set fallback values
+    isSeller = false;
+    isBuyer = false;
+    isSold = false;
+    productTitle = '';
+    productPrice = null;
+    productId = '';
+  }
+
+  // Debug: renderMessage function
   const renderMessage = ({ item }: { item: Message }) => {
-    const myMsg = item.senderId === user?.uid;
-    return (
-      <View style={[styles.messageContainer, myMsg ? styles.myMessage : styles.otherMessage]}>
-        <View style={[styles.messageBubble, myMsg ? styles.myBubble : styles.otherBubble]}>
-          <Text style={[styles.messageText, myMsg ? styles.myText : styles.otherText]}>
-            {item.text}
-          </Text>
-          <Text style={[styles.timestamp, myMsg ? styles.myTime : styles.otherTime]}>
-            {item.timestamp
-              ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : ''}
-          </Text>
+    console.log('🔄 Rendering message:', item?.id);
+
+    try {
+      const myMsg = item.senderId === user?.uid;
+      console.log('✅ Message render data:', { myMsg, senderId: item.senderId, userId: user?.uid });
+
+      return (
+        <View style={[styles.messageContainer, myMsg ? styles.myMessage : styles.otherMessage]}>
+          <View style={[styles.messageBubble, myMsg ? styles.myBubble : styles.otherBubble]}>
+            <Text style={[styles.messageText, myMsg ? styles.myText : styles.otherText]}>
+              {item.text}
+            </Text>
+            <Text style={[styles.timestamp, myMsg ? styles.myTime : styles.otherTime]}>
+              {item.timestamp
+                ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : ''}
+            </Text>
+          </View>
         </View>
-      </View>
-    );
+      );
+    } catch (error) {
+      console.error('❌ Error rendering message:', error);
+      return (
+        <View>
+          <Text>Error rendering message</Text>
+        </View>
+      );
+    }
   };
 
+  // Debug: Loading state
   if (initialLoading) {
+    console.log('⏳ Showing loading screen...');
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#ee5899" />
@@ -139,184 +296,244 @@ export default function ChatDetailScreen() {
     );
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft color="#fff" size={26} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{otherUserName}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+  // Debug: Main render
+  console.log('🔄 Rendering main ChatDetailScreen...');
+  console.log('Render state:', {
+    messagesCount: messages?.length || 0,
+    isSeller,
+    isSold,
+    sellerProductsCount: sellerProducts?.length || 0
+  });
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(i) => i.id}
-        style={styles.messagesList}
-        contentContainerStyle={styles.messagesContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              Start your conversation with {otherUserName}
-            </Text>
-          </View>
-        }
-      />
-
-      {/* Seller product & quantity selection strip */}
-      {isSeller && !isSold && (
-        <View style={styles.selectionStrip}>
-          {/* Product Picker */}
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={selectedProductId}
-              onValueChange={(itemValue: string) => setSelectedProductId(itemValue)}
-            >
-              <Picker.Item label="Select product" value="" enabled={false} />
-              {sellerProducts.map((product) => (
-                <Picker.Item
-                  key={product.id}
-                  label={`${product.title} (€${product.price})`}
-                  value={product.id}
-                />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Quantity Picker */}
-          <View style={[styles.pickerWrapper, { flex: 0.4 }]}>
-            <Picker
-              selectedValue={selectedQuantity}
-              enabled={!!selectedProductId}
-              onValueChange={(itemValue: number) => setSelectedQuantity(itemValue)}
-            >
-              <Picker.Item label="Select quantity" value={0} enabled={false} />
-              {sellerProducts.find(p => p.id === selectedProductId)?.servings &&
-                Array.from({ length: sellerProducts.find(p => p.id === selectedProductId).servings }, (_, i) => i + 1)
-                  .map(qty => <Picker.Item key={qty} label={`${qty}`} value={qty} />)
-              }
-            </Picker>
-          </View>
-
-          {/* Confirm button */}
-          <TouchableOpacity
-            style={[
-              styles.confirmBtn,
-              (!selectedProductId || selectedQuantity === 0) && { backgroundColor: '#ccc' }
-            ]}
-            disabled={!selectedProductId || selectedQuantity === 0}
-            onPress={async () => {
-              setShowSoldSheet(true);
-              try {
-                const buyerId = chatMeta?.buyerId || otherUserId;
-                const product = sellerProducts.find(p => p.id === selectedProductId);
-                await orderService.markProductAsSold(
-                  buyerId,
-                  user.uid,
-                  selectedProductId,
-                  product?.price ?? 0,
-                  selectedQuantity // Pass the selected quantity here
-                );
-              } catch {
-                Alert.alert('Error', 'Could not mark product as sold.');
-              }
-            }}
-          >
-            <Text style={styles.confirmBtnText}>Confirm</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* SOLD banner */}
-      {(isSold && (isSeller || isBuyer)) && (
-        <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.actionContainer}>
-          <SoldBanner />
-        </Animated.View>
-      )}
-
-      {/* Input */}
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value={newMessage}
-            onChangeText={setNewMessage}
-            placeholder="Type a message..."
-            style={styles.textInput}
-            multiline
-            editable={!loading}
-            placeholderTextColor="#bbb"
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!newMessage.trim() || loading) && styles.sendButtonDisabled]}
-            onPress={sendMessage}
-            disabled={!newMessage.trim() || loading}
-          >
-            <Send color="#fff" size={22} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Confirmation Bottom Sheet */}
-      <Modal
-        visible={showSoldSheet}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowSoldSheet(false)}
+  try {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
-        <View style={styles.modalOverlay}>
-          <Animated.View
-            entering={SlideInDown.springify().damping(16)}
-            exiting={SlideOutDown}
-            style={styles.modalSheet}
-          >
-            <Text style={styles.modalTitle}>Order Confirmed!</Text>
-            <Text style={styles.modalDesc}>
-              Your product has been marked as sold.
-            </Text>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalLabel}>
-                Product: <Text style={styles.modalValue}>
-                  {sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle}
-                </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => {
+            console.log('🔄 Back button pressed');
+            try {
+              router.back();
+            } catch (error) {
+              console.error('❌ Error navigating back:', error);
+            }
+          }} style={styles.backButton}>
+            <ArrowLeft color="#fff" size={26} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{otherUserName}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(i) => {
+            console.log('🔑 Extracting key for message:', i?.id);
+            return i.id;
+          }}
+          style={styles.messagesList}
+          contentContainerStyle={styles.messagesContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                Start your conversation with {otherUserName}
               </Text>
-              <Text style={styles.modalLabel}>
-                Buyer: <Text style={styles.modalValue}>{otherUserName}</Text>
+            </View>
+          }
+        />
+
+        {/* Seller product & quantity selection strip */}
+        {isSeller && !isSold && (
+          <View style={styles.selectionStrip}>
+            {/* Product Picker */}
+            <View style={styles.pickerWrapper}>
+              <CustomPicker
+                items={sellerProducts.map((product): PickerItem => ({
+                  label: `${product.title} (€${product.price})`,
+                  value: product.id,
+                }))}
+                selectedValue={selectedProductId}
+                onValueChange={(value) => {
+                  console.log('🔄 Product picker value changed:', value);
+                  setSelectedProductId(value as string);
+                  setSelectedQuantity(0); // Reset quantity when product changes
+                }}
+                placeholder="Select product"
+                modalTitle="Select Product"
+                style={styles.customPickerStyle}
+              />
+            </View>
+
+            {/* Quantity Picker */}
+            <View style={[styles.pickerWrapper, { flex: 0.4 }]}>
+              <CustomPicker
+                items={
+                  selectedProductId
+                    ? Array.from(
+                      {
+                        length: sellerProducts.find(p => p.id === selectedProductId)?.servings || 0
+                      },
+                      (_, i) => ({
+                        label: (i + 1).toString(),
+                        value: i + 1,
+                      })
+                    )
+                    : []
+                }
+                selectedValue={selectedQuantity}
+                onValueChange={(value) => {
+                  console.log('🔄 Quantity picker value changed:', value);
+                  setSelectedQuantity(value as number);
+                }}
+                placeholder="Select quantity"
+                modalTitle="Select Quantity"
+                disabled={!selectedProductId}
+                style={styles.customPickerStyle}
+              />
+            </View>
+
+            {/* Confirm button */}
+            <TouchableOpacity
+              style={[
+                styles.confirmBtn,
+                (!selectedProductId || selectedQuantity === 0) && { backgroundColor: '#ccc' }
+              ]}
+              disabled={!selectedProductId || selectedQuantity === 0}
+              onPress={async () => {
+                console.log('🔄 Confirm button pressed');
+                setShowSoldSheet(true);
+                try {
+                  const buyerId = chatMeta?.buyerId || otherUserId;
+                  const product = sellerProducts.find(p => p.id === selectedProductId);
+                  console.log('📡 Marking product as sold...');
+                  await orderService.markProductAsSold(
+                    buyerId,
+                    user?.uid || '',
+                    selectedProductId,
+                    product?.price ?? 0,
+                    selectedQuantity
+                  );
+                  console.log('✅ Product marked as sold');
+                } catch (error) {
+                  console.error('❌ Error marking product as sold:', error);
+                  Alert.alert('Error', 'Could not mark product as sold.');
+                }
+              }}
+            >
+              <Text style={styles.confirmBtnText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {/* SOLD banner */}
+        {(isSold && (isSeller || isBuyer)) && (
+          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.actionContainer}>
+            <SoldBanner />
+          </Animated.View>
+        )}
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              value={newMessage}
+              onChangeText={(text) => {
+                console.log('🔄 Text input changed:', text.length, 'characters');
+                setNewMessage(text);
+              }}
+              placeholder="Type a message..."
+              style={styles.textInput}
+              multiline
+              editable={!loading}
+              placeholderTextColor="#bbb"
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!newMessage.trim() || loading) && styles.sendButtonDisabled]}
+              onPress={() => {
+                console.log('🔄 Send button pressed');
+                sendMessage();
+              }}
+              disabled={!newMessage.trim() || loading}
+            >
+              <Send color="#fff" size={22} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Confirmation Bottom Sheet */}
+        <Modal
+          visible={showSoldSheet}
+          transparent
+          animationType="none"
+          onRequestClose={() => {
+            console.log('🔄 Modal close requested');
+            setShowSoldSheet(false);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <Animated.View
+              entering={SlideInDown.springify().damping(16)}
+              exiting={SlideOutDown}
+              style={styles.modalSheet}
+            >
+              <Text style={styles.modalTitle}>Order Confirmed!</Text>
+              <Text style={styles.modalDesc}>
+                Your product has been marked as sold.
               </Text>
-              <Text style={styles.modalLabel}>
-                Quantity: <Text style={styles.modalValue}>{selectedQuantity}</Text>
-              </Text>
-              <Text style={styles.modalLabel}>
-                Date: <Text style={styles.modalValue}>{new Date().toLocaleDateString()}</Text>
-              </Text>
-              {!!productPrice && (
+              <View style={styles.modalBox}>
                 <Text style={styles.modalLabel}>
-                  Amount: <Text style={styles.modalValue}>
-                    {sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice} Euro
+                  Product: <Text style={styles.modalValue}>
+                    {sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle}
                   </Text>
                 </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.modalBtn}
-              onPress={() => setShowSoldSheet(false)}
-            >
-              <Text style={styles.modalBtnText}>Close</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Modal>
-    </KeyboardAvoidingView>
-  );
+                <Text style={styles.modalLabel}>
+                  Buyer: <Text style={styles.modalValue}>{otherUserName}</Text>
+                </Text>
+                <Text style={styles.modalLabel}>
+                  Quantity: <Text style={styles.modalValue}>{selectedQuantity}</Text>
+                </Text>
+                <Text style={styles.modalLabel}>
+                  Date: <Text style={styles.modalValue}>{new Date().toLocaleDateString()}</Text>
+                </Text>
+                {!!productPrice && (
+                  <Text style={styles.modalLabel}>
+                    Amount: <Text style={styles.modalValue}>
+                      {sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice} Euro
+                    </Text>
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={() => {
+                  console.log('🔄 Modal close button pressed');
+                  setShowSoldSheet(false);
+                }}
+              >
+                <Text style={styles.modalBtnText}>Close</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
+    );
+  } catch (error) {
+    console.error('❌ Critical error in main render:', error);
+    return (
+      <View style={styles.container}>
+        <Text>Error: Component crashed during render</Text>
+      </View>
+    );
+  }
 }
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
@@ -359,5 +576,10 @@ const styles = StyleSheet.create({
   modalLabel: { fontFamily: 'Inter-Medium', fontSize: 15, color: '#888' },
   modalValue: { fontFamily: 'Inter-Bold', color: '#111' },
   modalBtn: { backgroundColor: '#ee5899', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12 },
-  modalBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 16, color: '#fff' }
+  modalBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 16, color: '#fff' },
+  customPickerStyle: {
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
 });
