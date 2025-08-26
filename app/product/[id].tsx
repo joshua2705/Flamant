@@ -140,11 +140,14 @@ export default function ProductDetailScreen() {
 
   if (error || !product) {
     return (
-      <View style={styles.fullscreen}>
-        <Text style={styles.errorText}>{error || 'Product not found'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadProduct}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <Header showBackButton={true} title="Error" />
+        <View style={styles.fullscreen}>
+          <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadProduct}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -202,6 +205,7 @@ export default function ProductDetailScreen() {
                 <Text style={styles.metaValue}>{product.location}</Text>
               </View>
             </View>
+
           </View>
         </ScrollView>
         <View style={styles.orderSection}>

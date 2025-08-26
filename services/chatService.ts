@@ -191,7 +191,7 @@ export const chatService = {
     return onSnapshot(q, (snapshot) => {
       console.log(' DEBUG: Purchase query found', snapshot.docs.length, 'chats');
       
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach(doc => { 
         const data = doc.data();
         console.log('🔍 DEBUG: Purchase chat:', {
           id: doc.id,

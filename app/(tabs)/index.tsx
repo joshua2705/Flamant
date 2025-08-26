@@ -61,8 +61,6 @@ useEffect(() => {
   });
 }, [loading, products]);
 
-
-
   const loadProducts = async () => {
     if (!user) return;
     try {
@@ -78,6 +76,7 @@ useEffect(() => {
     }
   };
 
+
   const handleSearch = (query: string) => {
     if (query.trim() === '') {
       setFilteredProducts(products);
@@ -86,6 +85,7 @@ useEffect(() => {
         (product) =>
           product.title.toLowerCase().includes(query.toLowerCase()) ||
           product.description.toLowerCase().includes(query.toLowerCase()) ||
+          product.tags.some((tag) => tag.toLowerCase().includes(query.toLowerCase())) ||
           product.tags.some((tag) => tag.toLowerCase().includes(query.toLowerCase())) ||
           product.category.toLowerCase().includes(query.toLowerCase())
       );
@@ -109,7 +109,7 @@ useEffect(() => {
       <View style={styles.container}>
         {/* <Header title="FlamingoFood"  showFavorites /> */}
         {/* <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading delicious food...</Text>
+        <FoodLoadingAnimation/>
         </View> */}
         <FoodLoadingAnimation/>
       </View>
@@ -221,3 +221,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 });
+

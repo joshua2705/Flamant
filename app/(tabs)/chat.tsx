@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { chatUserService } from '@/services/chatUserService';
+import { orderService } from '@/services/orderService';
 
 interface ChatWithUser {
   id: string;
@@ -17,6 +18,7 @@ interface ChatWithUser {
     title: string;
     price: number;
     image?: string;
+    isAvailable?: boolean;
   };
   buyerId?: string;
   sellerId?: string;
@@ -51,15 +53,6 @@ export default function ChatScreen() {
       return;
     }
 
-    // // Create userProfile from auth user if it doesn't exist
-    // const effectiveUserProfile = userProfile || {
-    //   id: user.uid,
-    //   name: user.email?.split('@')[0] || 'User',
-    //   email: user.email || '',
-    // };
-
-    // console.log('Using effectiveUserProfile:', effectiveUserProfile);
-
     // Sync user from main Firebase to chat Firebase
     const syncUser = async () => {
       try {
@@ -73,7 +66,7 @@ export default function ChatScreen() {
         // The useEffect hook will re-run when userProfile is updated
       }
       } catch (error: any) {
-        console.error('❌ Error syncing user:', error);
+        console.error('Error syncing user:', error);
         setLoading(false);
       }
     };
@@ -84,7 +77,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!user || !userSynced) return;
 
-    console.log('🔍 Setting up chat subscriptions for user:', user.uid);
+    console.log('Setting up chat subscriptions for user:', user.uid);
     
     // Subscribe to purchase chats (where user is buyer)
     const unsubscribePurchases = chatService.subscribeToUserPurchases(user.uid, async (userPurchaseChats) => {
@@ -184,6 +177,7 @@ export default function ChatScreen() {
   };
 
   const ChatItem = ({ chat }: { chat: ChatWithUser }) => (
+    //here?
     <TouchableOpacity style={styles.chatItem} onPress={() => handleChatPress(chat)}>
       <View style={styles.avatar}>
         <User size={24} color="#ee5899" strokeWidth={2} />
@@ -199,9 +193,14 @@ export default function ChatScreen() {
         
         {/* Show product info if it's a product chat */}
         {chat.isProductChat && chat.productInfo && (
-          <Text style={styles.productTitle} numberOfLines={1}>
-            {chat.productInfo.title}
-          </Text>
+          <View style={styles.productTitleContainer}>
+            <Text style={styles.productTitle} numberOfLines={1}>
+               {chat.productInfo.title}
+            </Text>
+            {!chat.productInfo.isAvailable && (
+            <Text style={styles.soldLabel}>SOLD</Text>
+            )}
+          </View>
         )}
         
         <Text 
@@ -216,18 +215,6 @@ export default function ChatScreen() {
       </View>
       
       {chat.unread && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
-
-  const TabButton = ({ tab, title, icon }: { tab: TabType; title: string; icon: any }) => (
-    <TouchableOpacity
-      style={[styles.tabButton, activeTab === tab && styles.activeTab]}
-      onPress={() => setActiveTab(tab)}
-    >
-      {icon}
-      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-        {title}
-      </Text>
     </TouchableOpacity>
   );
 
@@ -404,16 +391,6 @@ const styles = StyleSheet.create({
       borderBottomWidth: 2,
       borderBottomColor: 'transparent',
     },
-  tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    gap: 8,
-    backgroundColor: '#F9FAFB',
-  },
   activeTab: {
     borderBottomColor: '#ee5899',
   },
@@ -464,6 +441,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#9CA3AF',
   },
+
+  productTitleContainer: { // ADD THIS STYLE
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+
+  soldLabel: { // ADD THIS STYLE
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#DC2626',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+    textTransform: 'uppercase',
+  },
+  
   productTitle: {
     fontSize: 13,
     fontFamily: 'Inter-Medium',
