@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Package } from 'lucide-react-native';
+import { Plus, Package, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
@@ -25,6 +25,7 @@ export default function SellScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [columns, setColumns] = useState(getColumns());
+  const [showSoldItems, setShowSoldItems] = useState(true); // Toggle state for sold items
 
   // Update columns when screen size changes
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function SellScreen() {
     
     try {
       setLoading(true);
-      console.log("Getting listings by user with id",userProfile.id);
+      console.log("Getting listings by user with id", userProfile.id);
       const userOwnedProducts = await productService.getProductsBySeller(userProfile.id);
       console.log("Listings obtained");
       const filteredProducts = userOwnedProducts;
@@ -66,6 +67,15 @@ export default function SellScreen() {
   const handleCreateListing = () => {
     router.push('/sell-food');
   };
+
+  // Filter products based on toggle state
+  const filteredProducts = showSoldItems 
+    ? userProducts 
+    : userProducts.filter(product => product.isAvailable !== false);
+
+  // Calculate stats
+  const activeProducts = userProducts.filter(product => product.isAvailable !== false);
+  const soldProducts = userProducts.filter(product => product.isAvailable === false);
 
   const EmptyState = () => (
     <View style={styles.emptyState}>
@@ -88,22 +98,66 @@ export default function SellScreen() {
       <Text style={styles.statsTitle}>Your Performance</Text>
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{userProducts.length}</Text>
+          <Text style={styles.statNumber}>{activeProducts.length}</Text>
           <Text style={styles.statLabel}>Active Listings</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{soldProducts.length}</Text>
+          <Text style={styles.statLabel}>Sold Items</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>4.8</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>23</Text>
-          <Text style={styles.statLabel}>Reviews</Text>
-        </View>
       </View>
     </View>
   );
+
+  // Custom Toggle Component
+  const SoldItemsToggle = () => {
+    const toggleAnimation = new Animated.Value(showSoldItems ? 1 : 0);
+
+    const handleToggle = () => {
+      const toValue = showSoldItems ? 0 : 1;
+      Animated.timing(toggleAnimation, {
+        toValue,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+      setShowSoldItems(!showSoldItems);
+    };
+
+    const translateX = toggleAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [2, 22],
+    });
+
+    const backgroundColor = toggleAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['#E5E7EB', '#ee5899'],
+    });
+
+    return (
+      <View style={styles.toggleContainer}>
+        <Text style={styles.toggleLabel}>
+          {showSoldItems ? 'Hide' : 'Show'} sold items ({soldProducts.length})
+        </Text>
+        <TouchableOpacity style={styles.toggleWrapper} onPress={handleToggle}>
+          <Animated.View style={[styles.toggleTrack, { backgroundColor }]}>
+            <Animated.View style={[styles.toggleThumb, { transform: [{ translateX }] }]}>
+              {showSoldItems ? (
+                <Eye size={12} color="#ee5899" />
+              ) : (
+                <EyeOff size={12} color="#9CA3AF" />
+              )}
+            </Animated.View>
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -133,25 +187,41 @@ export default function SellScreen() {
         ) : (
           <View style={styles.listingsContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Food Listings</Text>
-              <Text style={styles.sectionSubtitle}>
-                {userProducts.length} active listing{userProducts.length !== 1 ? 's' : ''} • Earning potential: €{userProducts.reduce((sum, product) => sum + product.price, 0).toFixed(2)}
-              </Text>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Your Food Listings</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {filteredProducts.length} listing{filteredProducts.length !== 1 ? 's' : ''} shown • 
+                  Active earning potential: €{activeProducts.reduce((sum, product) => sum + product.price, 0).toFixed(2)}
+                </Text>
+              </View>
+              
+              {/* Toggle for showing/hiding sold items */}
+              {soldProducts.length > 0 && <SoldItemsToggle />}
             </View>
             
-            <View style={[styles.gridContainer, { paddingHorizontal: 20 }]}>
-              {userProducts.map(product => (
-                <View 
-                  key={product.id} 
-                  style={[
-                    styles.gridItem,
-                    { width: `${100 / columns}%` }
-                  ]}
-                >
-                  <ProductCard product={product} />
-                </View>
-              ))}
-            </View>
+            {filteredProducts.length === 0 ? (
+              <View style={styles.noResultsContainer}>
+                <EyeOff size={48} color="#9CA3AF" />
+                <Text style={styles.noResultsTitle}>No items to show</Text>
+                <Text style={styles.noResultsSubtitle}>
+                  All your items are currently sold. Toggle "Show sold items" to see them.
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.gridContainer, { paddingHorizontal: 20 }]}>
+                {filteredProducts.map(product => (
+                  <View 
+                    key={product.id} 
+                    style={[
+                      styles.gridItem,
+                      { width: `${100 / columns}%` }
+                    ]}
+                  >
+                    <ProductCard product={product} />
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -234,6 +304,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
+  sectionTitleContainer: {
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 20,
     fontFamily: 'Inter-SemiBold',
@@ -245,6 +318,68 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#ee5899',
     fontWeight: '500',
+  },
+  // Toggle Styles
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#374151',
+    flex: 1,
+  },
+  toggleWrapper: {
+    marginLeft: 12,
+  },
+  toggleTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  // No Results Styles
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  noResultsTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noResultsSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   emptyState: {
     flex: 1,
