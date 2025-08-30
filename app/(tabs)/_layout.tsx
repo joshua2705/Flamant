@@ -6,8 +6,10 @@ export default function TabLayout() {
   return (
     <Tabs
       tabBar={(props) => <NavigationBar {...props} />}
+      
       screenOptions={{
         headerShown: false,
+        lazy: false
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Buy' }} />
