@@ -21,7 +21,6 @@ import Animated, {
   SlideInDown,
   SlideOutDown
 } from 'react-native-reanimated';
-import { Picker } from '@react-native-picker/picker';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
@@ -66,8 +65,6 @@ export default function ChatDetailScreen() {
     user = authResult.user;
     console.log('✅ useAuth successful, user:', user?.uid || 'No user');
   } catch (error) {
-    console.error('❌ useAuth failed:', error);
-    // Fallback if useAuth fails
     user = null;
   }
 
@@ -205,22 +202,31 @@ export default function ChatDetailScreen() {
     }
 
     const text = newMessage.trim();
-    console.log('📝 Sending message:', text);
-
     setNewMessage('');
     setLoading(true);
 
     try {
-      console.log('📡 Calling chatService.sendMessage...');
       await chatService.sendMessage(chatId, user.uid, text);
       console.log('✅ Message sent successfully');
     } catch (error) {
-      console.error('❌ Error sending message:', error);
       Alert.alert('Error', 'Failed to send message.');
       setNewMessage(text);
     } finally {
       setLoading(false);
       console.log('✅ sendMessage completed');
+    }
+  };
+
+  //Debug: Send Deny Sale text
+  const denySale = async () => {
+    if (loading || !user) { return;} 
+    setLoading(true);
+    try {
+      await chatService.sendMessage(chatId, user.uid, "Sorry, the item is no longer for sale :(");
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send message.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -360,7 +366,7 @@ export default function ChatDetailScreen() {
             <View style={styles.selectionStrip}>
               {/* Product Picker */}
               <View style={styles.orderButtonWrapper}>
-                <TouchableOpacity style={styles.denyOrderButton} >
+                <TouchableOpacity style={styles.denyOrderButton} onPress={denySale}>
                   <Text style={styles.denyOrderButtonText}>
                     Deny Sale
                   </Text>
@@ -377,7 +383,6 @@ export default function ChatDetailScreen() {
                     setSelectedProductId(value as string);
                     // Optionally reset quantity for others, but usually not necessary
                   }}
-                  showQuantities={true}
                   quantities={selectedQuantities}
                   onQuantityChange={(productId, newQty) => {
                     setSelectedQuantities(q => ({ ...q, [productId]: newQty }));
@@ -385,16 +390,14 @@ export default function ChatDetailScreen() {
                   availableQuantities={Object.fromEntries(
                     sellerProducts.map(p => [p.id, p.servings])
                   )}
-                  placeholder="Proceed Sale"
+                  displayText="Proceed Sale"
                   modalTitle="Select Product & Quantity"
                   onConfirm={async () => {
-                    console.log('🔄 Confirm button pressed');
                     setShowSoldSheet(true);
                     try {
                       const buyerId = chatMeta?.buyerId || otherUserId;
                       const product = sellerProducts.find(p => p.id === selectedProductId);
                       const selectedQuantity = selectedQuantities[selectedProductId] || 0;
-                      console.log('📡 Marking product as sold...');
                       await orderService.markProductAsSold(
                         buyerId,
                         user?.uid || '',
@@ -402,9 +405,8 @@ export default function ChatDetailScreen() {
                         product?.price ?? 0,
                         selectedQuantity
                       );
-                      console.log('✅ Product marked as sold');
+                      console.log('Product marked as sold');
                     } catch (error) {
-                      console.error('❌ Error marking product as sold:', error);
                       Alert.alert('Error', 'Could not mark product as sold.');
                     }
                   }}

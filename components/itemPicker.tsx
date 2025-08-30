@@ -14,25 +14,20 @@ interface CustomPickerProps {
   quantities?: { [key: string]: number };
   onQuantityChange?: (value: string | number, newQty: number) => void;
   availableQuantities?: { [key: string]: number };
-  showQuantities?: boolean;
-  placeholder?: string;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  displayText?: string;
   modalTitle?: string;
   onConfirm?: () => void;
 }
 
 const CustomPicker: React.FC<CustomPickerProps> = ({
   items, selectedValue, onValueChange, quantities = {}, onQuantityChange, availableQuantities = {},
-  showQuantities = false, placeholder = "Select an option",
+  displayText = "Select an option",
   modalTitle = "Select Option", onConfirm
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
-  
-  const displayText = placeholder;
   const selectedQuantity = quantities[selectedValue] || 0;
-  const canConfirm = selectedValue && (!showQuantities || selectedQuantity > 0);
+  const canConfirm = selectedValue && (false || selectedQuantity > 0);
 
   useEffect(() => {
     if (isVisible) {
@@ -84,7 +79,6 @@ const CustomPicker: React.FC<CustomPickerProps> = ({
           {selected ? <CheckCircle color="#ee5899" size={20} /> : <Circle color="#ccc" size={20} />}
         </TouchableOpacity>
         <Text style={[styles.optionText, selected && styles.selectedText]}>{item.label}</Text>
-        {showQuantities && (
           <View style={styles.quantityGroup}>
             <TouchableOpacity 
               style={styles.qtyBtn} 
@@ -102,7 +96,6 @@ const CustomPicker: React.FC<CustomPickerProps> = ({
               <Plus size={16} color={qty >= maxQty ? '#ccc' : '#374151'} />
             </TouchableOpacity>
           </View>
-        )}
       </View>
     );
   };
