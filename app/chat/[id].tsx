@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Send, ArrowLeft } from 'lucide-react-native';
 import Animated, {
@@ -80,7 +81,8 @@ export default function ChatDetailScreen() {
   const [showSoldSheet, setShowSoldSheet] = useState(false);
   const [sellerProducts, setSellerProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [selectedQuantity, setSelectedQuantity] = useState(0);
+  const [selectedQuantities, setSelectedQuantities] = useState<{ [id: string]: number }>({});
+
   console.log('✅ State variables initialized');
 
   // Debug: Ref initialization
@@ -289,10 +291,12 @@ export default function ChatDetailScreen() {
   if (initialLoading) {
     console.log('⏳ Showing loading screen...');
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ee5899" />
-        <Text style={styles.loadingText}>Loading messages...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ee5899" />
+          <Text style={styles.loadingText}>Loading messages...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -307,221 +311,197 @@ export default function ChatDetailScreen() {
 
   try {
     return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => {
-            console.log('🔄 Back button pressed');
-            try {
-              router.back();
-            } catch (error) {
-              console.error('❌ Error navigating back:', error);
-            }
-          }} style={styles.backButton}>
-            <ArrowLeft color="#fff" size={26} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{otherUserName}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        {/* Messages */}
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(i) => {
-            console.log('🔑 Extracting key for message:', i?.id);
-            return i.id;
-          }}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                Start your conversation with {otherUserName}
-              </Text>
-            </View>
-          }
-        />
-
-        {/* Seller product & quantity selection strip */}
-        {isSeller && !isSold && (
-          <View style={styles.selectionStrip}>
-            {/* Product Picker */}
-            <View style={styles.pickerWrapper}>
-              <CustomPicker
-                items={sellerProducts.map((product): PickerItem => ({
-                  label: `${product.title} (€${product.price})`,
-                  value: product.id,
-                }))}
-                selectedValue={selectedProductId}
-                onValueChange={(value) => {
-                  console.log('🔄 Product picker value changed:', value);
-                  setSelectedProductId(value as string);
-                  setSelectedQuantity(0); // Reset quantity when product changes
-                }}
-                placeholder="Select product"
-                modalTitle="Select Product"
-                style={styles.customPickerStyle}
-              />
-            </View>
-
-            {/* Quantity Picker */}
-            <View style={[styles.pickerWrapper, { flex: 0.4 }]}>
-              <CustomPicker
-                items={
-                  selectedProductId
-                    ? Array.from(
-                      {
-                        length: sellerProducts.find(p => p.id === selectedProductId)?.servings || 0
-                      },
-                      (_, i) => ({
-                        label: (i + 1).toString(),
-                        value: i + 1,
-                      })
-                    )
-                    : []
-                }
-                selectedValue={selectedQuantity}
-                onValueChange={(value) => {
-                  console.log('🔄 Quantity picker value changed:', value);
-                  setSelectedQuantity(value as number);
-                }}
-                placeholder="Select quantity"
-                modalTitle="Select Quantity"
-                disabled={!selectedProductId}
-                style={styles.customPickerStyle}
-              />
-            </View>
-
-            {/* Confirm button */}
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                (!selectedProductId || selectedQuantity === 0) && { backgroundColor: '#ccc' }
-              ]}
-              disabled={!selectedProductId || selectedQuantity === 0}
-              onPress={async () => {
-                console.log('🔄 Confirm button pressed');
-                setShowSoldSheet(true);
-                try {
-                  const buyerId = chatMeta?.buyerId || otherUserId;
-                  const product = sellerProducts.find(p => p.id === selectedProductId);
-                  console.log('📡 Marking product as sold...');
-                  await orderService.markProductAsSold(
-                    buyerId,
-                    user?.uid || '',
-                    selectedProductId,
-                    product?.price ?? 0,
-                    selectedQuantity
-                  );
-                  console.log('✅ Product marked as sold');
-                } catch (error) {
-                  console.error('❌ Error marking product as sold:', error);
-                  Alert.alert('Error', 'Could not mark product as sold.');
-                }
-              }}
-            >
-              <Text style={styles.confirmBtnText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {/* SOLD banner */}
-        {(isSold && (isSeller || isBuyer)) && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.actionContainer}>
-            <SoldBanner />
-          </Animated.View>
-        )}
-
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              value={newMessage}
-              onChangeText={(text) => {
-                console.log('🔄 Text input changed:', text.length, 'characters');
-                setNewMessage(text);
-              }}
-              placeholder="Type a message..."
-              style={styles.textInput}
-              multiline
-              editable={!loading}
-              placeholderTextColor="#bbb"
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, (!newMessage.trim() || loading) && styles.sendButtonDisabled]}
-              onPress={() => {
-                console.log('🔄 Send button pressed');
-                sendMessage();
-              }}
-              disabled={!newMessage.trim() || loading}
-            >
-              <Send color="#fff" size={22} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Confirmation Bottom Sheet */}
-        <Modal
-          visible={showSoldSheet}
-          transparent
-          animationType="none"
-          onRequestClose={() => {
-            console.log('🔄 Modal close requested');
-            setShowSoldSheet(false);
-          }}
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
         >
-          <View style={styles.modalOverlay}>
-            <Animated.View
-              entering={SlideInDown.springify().damping(16)}
-              exiting={SlideOutDown}
-              style={styles.modalSheet}
-            >
-              <Text style={styles.modalTitle}>Order Confirmed!</Text>
-              <Text style={styles.modalDesc}>
-                Your product has been marked as sold.
-              </Text>
-              <View style={styles.modalBox}>
-                <Text style={styles.modalLabel}>
-                  Product: <Text style={styles.modalValue}>
-                    {sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle}
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => {
+              console.log('🔄 Back button pressed');
+              try {
+                router.back();
+              } catch (error) {
+                console.error('❌ Error navigating back:', error);
+              }
+            }} style={styles.backButton}>
+              <ArrowLeft color="#fff" size={26} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{otherUserName}</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {/* Messages */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(i) => {
+              console.log('🔑 Extracting key for message:', i?.id);
+              return i.id;
+            }}
+            style={styles.messagesList}
+            contentContainerStyle={styles.messagesContainer}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>
+                  Start your conversation with {otherUserName}
+                </Text>
+              </View>
+            }
+          />
+
+          {/* Seller product & quantity selection strip */}
+
+          {isSeller && !isSold && (
+            <View style={styles.selectionStrip}>
+              {/* Product Picker */}
+              <View style={styles.orderButtonWrapper}>
+                <TouchableOpacity style={styles.denyOrderButton} >
+                  <Text style={styles.denyOrderButtonText}>
+                    Deny Sale
                   </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.orderButtonWrapper}>
+                <CustomPicker
+                  items={sellerProducts.map((product): PickerItem => ({
+                    label: `${product.title} (€${product.price})`,
+                    value: product.id,
+                  }))}
+                  selectedValue={selectedProductId}
+                  onValueChange={(value) => {
+                    setSelectedProductId(value as string);
+                    // Optionally reset quantity for others, but usually not necessary
+                  }}
+                  showQuantities={true}
+                  quantities={selectedQuantities}
+                  onQuantityChange={(productId, newQty) => {
+                    setSelectedQuantities(q => ({ ...q, [productId]: newQty }));
+                  }}
+                  availableQuantities={Object.fromEntries(
+                    sellerProducts.map(p => [p.id, p.servings])
+                  )}
+                  placeholder="Proceed Sale"
+                  modalTitle="Select Product & Quantity"
+                  onConfirm={async () => {
+                    console.log('🔄 Confirm button pressed');
+                    setShowSoldSheet(true);
+                    try {
+                      const buyerId = chatMeta?.buyerId || otherUserId;
+                      const product = sellerProducts.find(p => p.id === selectedProductId);
+                      const selectedQuantity = selectedQuantities[selectedProductId] || 0;
+                      console.log('📡 Marking product as sold...');
+                      await orderService.markProductAsSold(
+                        buyerId,
+                        user?.uid || '',
+                        selectedProductId,
+                        product?.price ?? 0,
+                        selectedQuantity
+                      );
+                      console.log('✅ Product marked as sold');
+                    } catch (error) {
+                      console.error('❌ Error marking product as sold:', error);
+                      Alert.alert('Error', 'Could not mark product as sold.');
+                    }
+                  }}
+                />
+              </View>
+            </View>
+          )}
+          {/* SOLD banner */}
+          {(isSold && (isSeller || isBuyer)) && (
+            <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.actionContainer}>
+              <SoldBanner />
+            </Animated.View>
+          )}
+
+          {/* Input */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                value={newMessage}
+                onChangeText={(text) => {
+                  console.log('🔄 Text input changed:', text.length, 'characters');
+                  setNewMessage(text);
+                }}
+                placeholder="Type a message..."
+                style={styles.textInput}
+                multiline
+                editable={!loading}
+                placeholderTextColor="#bbb"
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!newMessage.trim() || loading) && styles.sendButtonDisabled]}
+                onPress={() => {
+                  console.log('🔄 Send button pressed');
+                  sendMessage();
+                }}
+                disabled={!newMessage.trim() || loading}
+              >
+                <Send color="#fff" size={22} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Confirmation Bottom Sheet */}
+          <Modal
+            visible={showSoldSheet}
+            transparent
+            animationType="none"
+            onRequestClose={() => {
+              console.log('🔄 Modal close requested');
+              setShowSoldSheet(false);
+            }}
+          >
+            <View style={styles.modalOverlay}>
+              <Animated.View
+                entering={SlideInDown.springify().damping(16)}
+                exiting={SlideOutDown}
+                style={styles.modalSheet}
+              >
+                <Text style={styles.modalTitle}>Order Confirmed!</Text>
+                <Text style={styles.modalDesc}>
+                  Your product has been marked as sold.
                 </Text>
-                <Text style={styles.modalLabel}>
-                  Buyer: <Text style={styles.modalValue}>{otherUserName}</Text>
-                </Text>
-                <Text style={styles.modalLabel}>
-                  Quantity: <Text style={styles.modalValue}>{selectedQuantity}</Text>
-                </Text>
-                <Text style={styles.modalLabel}>
-                  Date: <Text style={styles.modalValue}>{new Date().toLocaleDateString()}</Text>
-                </Text>
-                {!!productPrice && (
+                <View style={styles.modalBox}>
                   <Text style={styles.modalLabel}>
-                    Amount: <Text style={styles.modalValue}>
-                      {sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice} Euro
+                    Product: <Text style={styles.modalValue}>
+                      {sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle}
                     </Text>
                   </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                style={styles.modalBtn}
-                onPress={() => {
-                  console.log('🔄 Modal close button pressed');
-                  setShowSoldSheet(false);
-                }}
-              >
-                <Text style={styles.modalBtnText}>Close</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </Modal>
-      </KeyboardAvoidingView>
+                  <Text style={styles.modalLabel}>
+                    Buyer: <Text style={styles.modalValue}>{otherUserName}</Text>
+                  </Text>
+
+                  <Text style={styles.modalLabel}>
+                    Date: <Text style={styles.modalValue}>{new Date().toLocaleDateString()}</Text>
+                  </Text>
+                  {!!productPrice && (
+                    <Text style={styles.modalLabel}>
+                      Amount: <Text style={styles.modalValue}>
+                        {sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice} Euro
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.modalBtn}
+                  onPress={() => {
+                    console.log('🔄 Modal close button pressed');
+                    setShowSoldSheet(false);
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>Close</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </Modal>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   } catch (error) {
     console.error('❌ Critical error in main render:', error);
@@ -559,14 +539,18 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyText: { fontFamily: 'Inter-Regular', color: '#999' },
   selectionStrip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e0e0e0' },
-  pickerWrapper: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginRight: 8, backgroundColor: '#fff' },
+  orderButtonWrapper: { flex: 1, marginRight: 8 },
+
+  denyOrderButton: { flexDirection: 'row', borderWidth: 1, borderColor: '#ee5899', backgroundColor: '#fff', borderRadius: 8, padding: 12, minHeight: 48 },
+  denyOrderButtonText: { fontSize: 16, color: '#ee5899', flex: 1, textAlign: 'center' },
+
   confirmBtn: { backgroundColor: '#ee5899', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   confirmBtnText: { color: '#fff', fontFamily: 'Inter-SemiBold' },
   actionContainer: { alignItems: 'center', backgroundColor: '#fff', paddingVertical: 10 },
   inputContainer: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0', padding: 12, paddingBottom: Platform.OS === 'ios' ? 34 : 12 },
   inputWrapper: { flexDirection: 'row', alignItems: 'flex-end' },
   textInput: { flex: 1, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 8, maxHeight: 100, backgroundColor: '#f9f9f9', fontFamily: 'Inter-Regular' },
-  sendButton: { backgroundColor: '#ee5899', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  sendButton: { backgroundColor: '#ee5899', width: 44, height: 44, borderRadius: 22, justifyContent: 'space-around', alignItems: 'center', transform: [{ rotate: '45deg' }] },
   sendButtonDisabled: { backgroundColor: '#e0e0e0' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.18)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 28, alignItems: 'center' },
@@ -577,9 +561,8 @@ const styles = StyleSheet.create({
   modalValue: { fontFamily: 'Inter-Bold', color: '#111' },
   modalBtn: { backgroundColor: '#ee5899', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12 },
   modalBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 16, color: '#fff' },
-  customPickerStyle: {
-    borderColor: '#ddd',
-    borderRadius: 8,
+  safeArea: {
+    flex: 1,
     backgroundColor: '#fff',
   },
 });
