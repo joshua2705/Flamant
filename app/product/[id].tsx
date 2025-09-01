@@ -208,11 +208,13 @@ export default function ProductDetailScreen() {
 
           </View>
         </ScrollView>
+        {product.seller.id!=user?.uid && (
         <View style={styles.orderSection}>
           <TouchableOpacity style={styles.orderButton} onPress={handleContactSeller}>
             <Text style={styles.orderButtonText}>Contact Seller</Text>
           </TouchableOpacity>
         </View>
+        )}
       </View>
     </SafeAreaView>
   );
