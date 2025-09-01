@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Send, ArrowLeft } from 'lucide-react-native';
+import OrderConfirmationModal from '@/components/PostSaleInvoice';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -26,7 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
-import CustomPicker, { PickerItem } from '@/components/itemPicker';
+import CustomPicker, { PickerItem } from '@/components/ItemPicker';
 
 import SoldBanner from '@/components/SoldBanner';
 
@@ -219,7 +220,7 @@ export default function ChatDetailScreen() {
 
   //Debug: Send Deny Sale text
   const denySale = async () => {
-    if (loading || !user) { return;} 
+    if (loading || !user) { return; }
     setLoading(true);
     try {
       await chatService.sendMessage(chatId, user.uid, "Sorry, the item is no longer for sale :(");
@@ -260,6 +261,13 @@ export default function ChatDetailScreen() {
     productPrice = null;
     productId = '';
   }
+
+  //Debug: Message post Sale
+  const orderDetails = {
+    productTitle: sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle,
+    buyerName: otherUserName,
+    amount: sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice,
+  };
 
   // Debug: renderMessage function
   const renderMessage = ({ item }: { item: Message }) => {
@@ -393,7 +401,6 @@ export default function ChatDetailScreen() {
                   displayText="Proceed Sale"
                   modalTitle="Select Product & Quantity"
                   onConfirm={async () => {
-                    setShowSoldSheet(true);
                     try {
                       const buyerId = chatMeta?.buyerId || otherUserId;
                       const product = sellerProducts.find(p => p.id === selectedProductId);
@@ -405,6 +412,7 @@ export default function ChatDetailScreen() {
                         product?.price ?? 0,
                         selectedQuantity
                       );
+                      setShowSoldSheet(true);
                       console.log('Product marked as sold');
                     } catch (error) {
                       Alert.alert('Error', 'Could not mark product as sold.');
@@ -450,58 +458,11 @@ export default function ChatDetailScreen() {
           </View>
 
           {/* Confirmation Bottom Sheet */}
-          <Modal
+          <OrderConfirmationModal
             visible={showSoldSheet}
-            transparent
-            animationType="none"
-            onRequestClose={() => {
-              console.log('🔄 Modal close requested');
-              setShowSoldSheet(false);
-            }}
-          >
-            <View style={styles.modalOverlay}>
-              <Animated.View
-                entering={SlideInDown.springify().damping(16)}
-                exiting={SlideOutDown}
-                style={styles.modalSheet}
-              >
-                <Text style={styles.modalTitle}>Order Confirmed!</Text>
-                <Text style={styles.modalDesc}>
-                  Your product has been marked as sold.
-                </Text>
-                <View style={styles.modalBox}>
-                  <Text style={styles.modalLabel}>
-                    Product: <Text style={styles.modalValue}>
-                      {sellerProducts.find(p => p.id === selectedProductId)?.title || productTitle}
-                    </Text>
-                  </Text>
-                  <Text style={styles.modalLabel}>
-                    Buyer: <Text style={styles.modalValue}>{otherUserName}</Text>
-                  </Text>
-
-                  <Text style={styles.modalLabel}>
-                    Date: <Text style={styles.modalValue}>{new Date().toLocaleDateString()}</Text>
-                  </Text>
-                  {!!productPrice && (
-                    <Text style={styles.modalLabel}>
-                      Amount: <Text style={styles.modalValue}>
-                        {sellerProducts.find(p => p.id === selectedProductId)?.price ?? productPrice} Euro
-                      </Text>
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={styles.modalBtn}
-                  onPress={() => {
-                    console.log('🔄 Modal close button pressed');
-                    setShowSoldSheet(false);
-                  }}
-                >
-                  <Text style={styles.modalBtnText}>Close</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
-          </Modal>
+            onClose={() => setShowSoldSheet(false)}
+            orderDetails={orderDetails}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -554,15 +515,6 @@ const styles = StyleSheet.create({
   textInput: { flex: 1, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 8, maxHeight: 100, backgroundColor: '#f9f9f9', fontFamily: 'Inter-Regular' },
   sendButton: { backgroundColor: '#ee5899', width: 44, height: 44, borderRadius: 22, justifyContent: 'space-around', alignItems: 'center', transform: [{ rotate: '45deg' }] },
   sendButtonDisabled: { backgroundColor: '#e0e0e0' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.18)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 28, alignItems: 'center' },
-  modalTitle: { fontFamily: 'Inter-Bold', fontSize: 22, color: '#ee5899', marginBottom: 6 },
-  modalDesc: { fontFamily: 'Inter-Regular', fontSize: 15, color: '#374151', marginBottom: 18, textAlign: 'center' },
-  modalBox: { backgroundColor: '#f8e1ef', borderRadius: 12, width: '100%', padding: 16, marginBottom: 18 },
-  modalLabel: { fontFamily: 'Inter-Medium', fontSize: 15, color: '#888' },
-  modalValue: { fontFamily: 'Inter-Bold', color: '#111' },
-  modalBtn: { backgroundColor: '#ee5899', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12 },
-  modalBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 16, color: '#fff' },
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
