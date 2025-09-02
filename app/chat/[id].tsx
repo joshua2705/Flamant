@@ -27,7 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
-import CustomPicker, { PickerItem } from '@/components/ItemPicker';
+import CustomPicker, { PickerItem } from '@/components/itemPicker';
 
 import SoldBanner from '@/components/SoldBanner';
 
@@ -80,6 +80,7 @@ export default function ChatDetailScreen() {
   const [sellerProducts, setSellerProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedQuantities, setSelectedQuantities] = useState<{ [id: string]: number }>({});
+  const [orderStatus, setOrderStatus] = useState('loading'); 
 
   console.log('✅ State variables initialized');
 
@@ -401,6 +402,8 @@ export default function ChatDetailScreen() {
                   displayText="Proceed Sale"
                   modalTitle="Select Product & Quantity"
                   onConfirm={async () => {
+                    setShowSoldSheet(true);
+                    setOrderStatus('loading');
                     try {
                       const buyerId = chatMeta?.buyerId || otherUserId;
                       const product = sellerProducts.find(p => p.id === selectedProductId);
@@ -412,10 +415,10 @@ export default function ChatDetailScreen() {
                         product?.price ?? 0,
                         selectedQuantity
                       );
-                      setShowSoldSheet(true);
+                      setOrderStatus('success');
                       console.log('Product marked as sold');
                     } catch (error) {
-                      Alert.alert('Error', 'Could not mark product as sold.');
+                      setOrderStatus('error');
                     }
                   }}
                 />
@@ -460,6 +463,7 @@ export default function ChatDetailScreen() {
           {/* Confirmation Bottom Sheet */}
           <OrderConfirmationModal
             visible={showSoldSheet}
+            status={orderStatus}
             onClose={() => setShowSoldSheet(false)}
             orderDetails={orderDetails}
           />

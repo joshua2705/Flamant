@@ -13,12 +13,14 @@ interface OrderDetails {
 
 interface OrderConfirmationModalProps {
   visible: boolean;
+  status: string;
   onClose: () => void;
   orderDetails: OrderDetails;
 }
 
 const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   visible,
+  status = "loading",
   onClose,
   orderDetails
 }) => {
@@ -68,6 +70,35 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
     });
   };
 
+  const getAnimationConfig = () => {
+    switch (status) {
+      case 'success':
+        return {
+          source: require('../assets/animations/sold-tick.json'),
+          loop: false,
+          speed: 1.6,
+        };
+      case 'loading':
+        return {
+          source: require('../assets/animations/Insider-loading.json'),
+          loop: true,
+          speed: 1.0,
+        };
+      case 'error':
+        return {
+          source: require('../assets/animations/error.json'),
+          loop: false,
+          speed: 0.75,
+        };
+      default:
+        return null;
+    }
+  };
+
+  const animationConfig = getAnimationConfig();
+
+  if (!animationConfig) return null;
+
   return (
     <Modal
       visible={visible}
@@ -86,7 +117,7 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
         >
           {/* Header with close button */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sale completed</Text>
+            <Text style={styles.modalTitle}>Sale {status}</Text>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
@@ -95,10 +126,10 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
           {/* Success Icon Animation */}
           <View style={styles.successIconContainer}>
             <LottieView
-              source={require('../assets/animations/sold-tick.json')} // Use your .lottie file here
+              source={animationConfig.source}
               autoPlay
-              loop={false}
-              speed={1.60}
+              loop={animationConfig.loop}
+              speed={animationConfig.speed}
               style={styles.lottieAnimation}
             />
           </View>
