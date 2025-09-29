@@ -27,7 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
-import CustomPicker, { PickerItem } from '@/components/itemPicker';
+import CustomPicker, { PickerItem } from '@/components/ItemPicker';
 
 import SoldBanner from '@/components/SoldBanner';
 

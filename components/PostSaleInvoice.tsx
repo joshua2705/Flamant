@@ -80,7 +80,7 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
         };
       case 'loading':
         return {
-          source: require('../assets/animations/Insider-loading.json'),
+          source: require('../assets/animations/insider-loading.json'),
           loop: true,
           speed: 1.0,
         };
